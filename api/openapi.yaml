@@ -1,0 +1,418 @@
+openapi: 3.1.0
+
+info:
+  title: ScreenGo
+  description: |
+    Self-hosted screenshot-as-a-service.
+
+    A lightweight microservice that takes website screenshots via headless Chrome, and never OOMs itself by tracking memory per active browser instance.
+  version: 0.1.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Jobs
+    description: Submit and inspect screenshot jobs
+  - name: Screenshots
+    description: Retrieve processed screenshot files
+
+paths:
+
+  /job:
+    post:
+      tags: [Jobs]
+      summary: Submit a screenshot job
+      description: |
+        Accepts a screenshot request and immediately returns a job ID.
+        The job is queued and will be processed when enough pod memory
+        is available. Poll `GET /job/{id}` to track progress.
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+            examples:
+              basic:
+                summary: Basic screenshot
+                value:
+                  url: "https://github.com"
+                  format: png
+                  width: 1280
+                  height: 800
+              full_page_pdf:
+                summary: Full page PDF
+                value:
+                  url: "https://news.ycombinator.com"
+                  format: pdf
+                  width: 1440
+                  height: 900
+                  full_page: true
+      responses:
+        '202':
+          description: Job accepted and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateJobResponse'
+              example:
+                job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
+                status: queued
+                status_url: "/job/01J4KZQX8G3N2P7M5R9T0VWYE6"
+                estimated_memory_mb: 312
+        '400':
+          description: Invalid request body or unsupported URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "invalid url: must be a valid http or https URL"
+        '413':
+          description: |
+            The requested viewport size exceeds the service memory budget entirely.
+            This job could never run regardless of current load.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "estimated memory (1800mb) exceeds total budget (768mb)"
+        '422':
+          description: Request body is valid JSON but fails semantic validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "width must be between 320 and 3840"
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /job/{id}:
+    get:
+      tags: [Jobs]
+      summary: Get job status
+      description: |
+        Returns the current state of a job. Poll this endpoint until
+        `status` is either `done` or `failed`.
+
+        When `status` is `done`, a `screenshot_url` field is included
+        pointing to `GET /screenshot/{id}`.
+      operationId: getJob
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job found — check `status` field for current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+              examples:
+                queued:
+                  summary: Job waiting for memory
+                  value:
+                    job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
+                    url: "https://github.com"
+                    format: png
+                    width: 1280
+                    height: 800
+                    full_page: false
+                    status: queued
+                    estimated_memory_mb: 312
+                    queued_at: "2024-01-15T10:00:00Z"
+                    started_at: null
+                    finished_at: null
+                    duration_ms: null
+                    memory_used_mb: null
+                    screenshot_url: null
+                    error: null
+                processing:
+                  summary: Job currently running
+                  value:
+                    job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
+                    url: "https://github.com"
+                    format: png
+                    width: 1280
+                    height: 800
+                    full_page: false
+                    status: processing
+                    estimated_memory_mb: 312
+                    queued_at: "2024-01-15T10:00:00Z"
+                    started_at: "2024-01-15T10:00:03Z"
+                    finished_at: null
+                    duration_ms: null
+                    memory_used_mb: null
+                    screenshot_url: null
+                    error: null
+                done:
+                  summary: Job completed successfully
+                  value:
+                    job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
+                    url: "https://github.com"
+                    format: png
+                    width: 1280
+                    height: 800
+                    full_page: false
+                    status: done
+                    estimated_memory_mb: 312
+                    queued_at: "2024-01-15T10:00:00Z"
+                    started_at: "2024-01-15T10:00:03Z"
+                    finished_at: "2024-01-15T10:00:08Z"
+                    duration_ms: 5120
+                    memory_used_mb: 287
+                    screenshot_url: "/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"
+                    error: null
+                failed:
+                  summary: Job failed
+                  value:
+                    job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
+                    url: "https://github.com"
+                    format: png
+                    width: 1280
+                    height: 800
+                    full_page: false
+                    status: failed
+                    estimated_memory_mb: 312
+                    queued_at: "2024-01-15T10:00:00Z"
+                    started_at: "2024-01-15T10:00:03Z"
+                    finished_at: "2024-01-15T10:00:33Z"
+                    duration_ms: 30000
+                    memory_used_mb: null
+                    screenshot_url: null
+                    error: "context deadline exceeded: page did not load within 30s"
+        '404':
+          description: No job found with the given ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "job not found"
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /screenshot/{id}:
+    get:
+      tags: [Screenshots]
+      summary: Download screenshot file
+      description: |
+        Streams the raw screenshot file for a completed job.
+        The `Content-Type` header will be `image/png` or `application/pdf`
+        depending on the format requested when the job was created.
+
+        Returns 404 if the job does not exist, has not completed yet,
+        or if the screenshot has been deleted due to TTL expiry.
+      operationId: getScreenshot
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Screenshot file stream
+          headers:
+            Content-Type:
+              description: MIME type of the screenshot
+              schema:
+                type: string
+                enum: [image/png, application/pdf]
+            Content-Disposition:
+              description: Suggested filename for download
+              schema:
+                type: string
+              example: 'attachment; filename="snapshot-01J4KZQX8G3N2P7M5R9T0VWYE6.png"'
+            Content-Length:
+              description: File size in bytes
+              schema:
+                type: integer
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Screenshot not found — job may not exist, may still be processing, or TTL may have expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "screenshot not found"
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+
+  parameters:
+    JobId:
+      name: id
+      in: path
+      required: true
+      description: ID job identifier returned by `POST /job`
+      schema:
+        type: string
+        examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+
+  schemas:
+
+    CreateJobRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The URL to screenshot. Must be a reachable http or https URL.
+          examples: ["https://github.com"]
+        format:
+          type: string
+          enum: [png, pdf]
+          default: png
+          description: Output format. PDFs capture the full page regardless of `full_page`.
+        width:
+          type: integer
+          minimum: 320
+          maximum: 3840
+          default: 1280
+          description: Viewport width in pixels.
+        height:
+          type: integer
+          minimum: 240
+          maximum: 2160
+          default: 800
+          description: Viewport height in pixels.
+        full_page:
+          type: boolean
+          default: false
+          description: |
+            Capture the full scrollable page height instead of just the viewport.
+            Increases memory usage proportionally to page length.
+
+    CreateJobResponse:
+      type: object
+      required: [job_id, status, status_url, estimated_memory_mb]
+      properties:
+        job_id:
+          type: string
+          description: Unique ID identifier for the job.
+          examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+        status:
+          type: string
+          enum: [queued]
+          description: Initial status is always `queued`.
+        status_url:
+          type: string
+          description: Convenience URL to poll for job status.
+          examples: ["/job/01J4KZQX8G3N2P7M5R9T0VWYE6"]
+        estimated_memory_mb:
+          type: integer
+          description: |
+            Estimated memory this job will reserve from the pod budget
+            while processing. Informational only.
+          examples: [312]
+
+    Job:
+      type: object
+      required:
+        - job_id
+        - url
+        - format
+        - width
+        - height
+        - full_page
+        - status
+        - estimated_memory_mb
+        - queued_at
+      properties:
+        job_id:
+          type: string
+          examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+        url:
+          type: string
+          format: uri
+          examples: ["https://github.com"]
+        format:
+          type: string
+          enum: [png, pdf]
+        width:
+          type: integer
+          examples: [1280]
+        height:
+          type: integer
+          examples: [800]
+        full_page:
+          type: boolean
+          examples: [false]
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        estimated_memory_mb:
+          type: integer
+          description: Memory reserved from the pod budget for this job.
+          examples: [312]
+        memory_used_mb:
+          type: integer
+          description: Actual memory used, recorded after the job completes. Null until done.
+          examples: [287]
+        queued_at:
+          type: string
+          format: date-time
+          description: When the job was accepted by the service.
+        started_at:
+          type: string
+          format: date-time
+          description: When the job started processing. Null while still queued.
+        finished_at:
+          type: string
+          format: date-time
+          description: When the job finished (success or failure). Null while pending or processing.
+        duration_ms:
+          type: integer
+          description: Total processing time in milliseconds. Null until finished.
+          examples: [5120]
+        screenshot_url:
+          type: string
+          description: URL to fetch the screenshot file. Only present when status is `done`.
+          examples: ["/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"]
+        error:
+          type: string
+          description: Human-readable error message. Only present when status is `failed`.
+          examples: ["context deadline exceeded: page did not load within 30s"]
+
+    JobStatus:
+      type: string
+      enum: [queued, processing, done, failed]
+      description: |
+        - `queued` — waiting for available pod memory
+        - `processing` — Chrome is actively rendering the page
+        - `done` — screenshot is ready to download
+        - `failed` — job encountered an unrecoverable error
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable description of what went wrong.
+          examples: ["unexpected error occurred"]
