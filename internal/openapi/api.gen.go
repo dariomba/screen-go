@@ -157,7 +157,7 @@ type ServerInterface interface {
 	CreateJob(w http.ResponseWriter, r *http.Request)
 	// Get job status
 	// (GET /job/{id})
-	GetJob(w http.ResponseWriter, r *http.Request, id JobID)
+	GetJobStatus(w http.ResponseWriter, r *http.Request, id JobID)
 	// Download screenshot file
 	// (GET /screenshot/{id})
 	GetScreenshot(w http.ResponseWriter, r *http.Request, id JobID)
@@ -186,8 +186,8 @@ func (siw *ServerInterfaceWrapper) CreateJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
-// GetJob operation middleware
-func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request) {
+// GetJobStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetJobStatus(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -201,7 +201,7 @@ func (siw *ServerInterfaceWrapper) GetJob(w http.ResponseWriter, r *http.Request
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetJob(w, r, id)
+		siw.Handler.GetJobStatus(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -357,7 +357,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/job", wrapper.CreateJob)
-	m.HandleFunc("GET "+options.BaseURL+"/job/{id}", wrapper.GetJob)
+	m.HandleFunc("GET "+options.BaseURL+"/job/{id}", wrapper.GetJobStatus)
 	m.HandleFunc("GET "+options.BaseURL+"/screenshot/{id}", wrapper.GetScreenshot)
 
 	return m
@@ -416,35 +416,35 @@ func (response CreateJob500JSONResponse) VisitCreateJobResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetJobRequestObject struct {
+type GetJobStatusRequestObject struct {
 	ID JobID `json:"id"`
 }
 
-type GetJobResponseObject interface {
-	VisitGetJobResponse(w http.ResponseWriter) error
+type GetJobStatusResponseObject interface {
+	VisitGetJobStatusResponse(w http.ResponseWriter) error
 }
 
-type GetJob200JSONResponse Job
+type GetJobStatus200JSONResponse Job
 
-func (response GetJob200JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+func (response GetJobStatus200JSONResponse) VisitGetJobStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetJob404JSONResponse ErrorResponse
+type GetJobStatus404JSONResponse ErrorResponse
 
-func (response GetJob404JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+func (response GetJobStatus404JSONResponse) VisitGetJobStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetJob500JSONResponse ErrorResponse
+type GetJobStatus500JSONResponse ErrorResponse
 
-func (response GetJob500JSONResponse) VisitGetJobResponse(w http.ResponseWriter) error {
+func (response GetJobStatus500JSONResponse) VisitGetJobStatusResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(500)
 
@@ -536,7 +536,7 @@ type StrictServerInterface interface {
 	CreateJob(ctx context.Context, request CreateJobRequestObject) (CreateJobResponseObject, error)
 	// Get job status
 	// (GET /job/{id})
-	GetJob(ctx context.Context, request GetJobRequestObject) (GetJobResponseObject, error)
+	GetJobStatus(ctx context.Context, request GetJobStatusRequestObject) (GetJobStatusResponseObject, error)
 	// Download screenshot file
 	// (GET /screenshot/{id})
 	GetScreenshot(ctx context.Context, request GetScreenshotRequestObject) (GetScreenshotResponseObject, error)
@@ -602,25 +602,25 @@ func (sh *strictHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetJob operation middleware
-func (sh *strictHandler) GetJob(w http.ResponseWriter, r *http.Request, id JobID) {
-	var request GetJobRequestObject
+// GetJobStatus operation middleware
+func (sh *strictHandler) GetJobStatus(w http.ResponseWriter, r *http.Request, id JobID) {
+	var request GetJobStatusRequestObject
 
 	request.ID = id
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetJob(ctx, request.(GetJobRequestObject))
+		return sh.ssi.GetJobStatus(ctx, request.(GetJobStatusRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetJob")
+		handler = middleware(handler, "GetJobStatus")
 	}
 
 	response, err := handler(r.Context(), w, r, request)
 
 	if err != nil {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetJobResponseObject); ok {
-		if err := validResponse.VisitGetJobResponse(w); err != nil {
+	} else if validResponse, ok := response.(GetJobStatusResponseObject); ok {
+		if err := validResponse.VisitGetJobStatusResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -691,19 +691,20 @@ var swaggerSpec = []string{
 	"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",
-	"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",
+	"I9YCzQrcZqBrwqZ0284jw3G8Plzu1w0IJYtu97IgSw6C4RouU1EyYHPpbnXcUFWFOGg/XD3uq74vwbY8",
+	"dtD5zPBTv6/aJSP/GeLuaq9MxA+s3o4+durnedBfMlI1+Vgst2Ex7Ux3nhyP42bkIkshBh+pP51RAxa2",
+	"k6P4+Oj4yeVxPIvjWTz9MeyWPEsIanU19+/whsNK2m7/PZ4+7XTCPbLEKMtu/3pod9ntJXtOn/wYFtqK",
+	"yD+AA3nKv+e86vl9zprEcdx669EDrF/h4snkt3Kxj8VH+NhvfJD/GrMf7sGgkdtPQY932EGUUvper9+h",
+	"VcI9Ivv84v82R3Ta48OdUXHKPUeEIwSv1v88EQq93ykcavODWRS2qPe0BUtVSuYmKmkG6c9tFfd1Gp3W",
+	"YQ6+Zzh5HDNEHopY6C79jCTwjfKjdacLYqxjPCu+BknOTn+nVO8l2OADWz/D2+FB9xK9C6uB5p7oabrZ",
+	"nQD78V3ASpD5+TnK4pk3ydHltoCFmzaBbmYpC57TFYwKufKkLzRawZaLuWTQfKbwo12fg0HzstkdiKeu",
+	"ZWWOOdYM9SQ+IXzZLGMKjIsUuOXGDkhG/Z+tBluwg7lUut4VaIyLE2w5GPi1rASklpeXrwjcFlxv76GT",
+	"F+HA5Tfgk/XopYm6Br8SLqnDyf0vio1HHrp1L0wvdoLEuCByMyUMAv+Tlyo6TrkplOF+5170lauV9zWe",
+	"I2nuA66e3YafFiJqLU2zHKT9Q7P6j/PISFq46en9WDws5GoeRSFo7FunlveV+03JvqgvnKLYRXNJkq0F",
+	"03dgOKkP86Pna+LZ6+cEd2FH1Y3DzsH1DLr13mAvFPpmz78GbYOU+E+A7kXP8c1oPqfbMH/xT/9BJwl/",
+	"qTFAUMG0xPcZXYPPTz+Z+h1C9mkV0bv4GoB3axWH4bjdnedRpHvpK5VSQRisQagCU6JT+2ejkcAFmTJ2",
+	"No2nsYOX6p79FPRzA8kIlwY12ZkgmPbHcq6+3A16hgWawzocoO+oGZwRqnl3dffvAAAA//+ZgNQ19CcA",
+	"AA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

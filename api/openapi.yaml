@@ -108,7 +108,7 @@ paths:
 
         When `status` is `done`, a `screenshot_url` field is included
         pointing to `GET /screenshot/{id}`.
-      operationId: getJob
+      operationId: getJobStatus
       parameters:
         - $ref: '#/components/parameters/JobId'
       responses:
