@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.0
 
 info:
   title: ScreenGo
@@ -272,7 +272,7 @@ components:
       description: ID job identifier returned by `POST /job`
       schema:
         type: string
-        examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+        example: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
 
   schemas:
 
@@ -284,7 +284,7 @@ components:
           type: string
           format: uri
           description: The URL to screenshot. Must be a reachable http or https URL.
-          examples: ["https://github.com"]
+          example: ["https://github.com"]
         format:
           type: string
           enum: [png, pdf]
@@ -316,7 +316,7 @@ components:
         job_id:
           type: string
           description: Unique ID identifier for the job.
-          examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+          example: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
         status:
           type: string
           enum: [queued]
@@ -324,13 +324,13 @@ components:
         status_url:
           type: string
           description: Convenience URL to poll for job status.
-          examples: ["/job/01J4KZQX8G3N2P7M5R9T0VWYE6"]
+          example: ["/job/01J4KZQX8G3N2P7M5R9T0VWYE6"]
         estimated_memory_mb:
           type: integer
           description: |
             Estimated memory this job will reserve from the pod budget
             while processing. Informational only.
-          examples: [312]
+          example: [312]
 
     Job:
       type: object
@@ -347,33 +347,33 @@ components:
       properties:
         job_id:
           type: string
-          examples: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
+          example: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
         url:
           type: string
           format: uri
-          examples: ["https://github.com"]
+          example: ["https://github.com"]
         format:
           type: string
           enum: [png, pdf]
         width:
           type: integer
-          examples: [1280]
+          example: [1280]
         height:
           type: integer
-          examples: [800]
+          example: [800]
         full_page:
           type: boolean
-          examples: [false]
+          example: [false]
         status:
           $ref: '#/components/schemas/JobStatus'
         estimated_memory_mb:
           type: integer
           description: Memory reserved from the pod budget for this job.
-          examples: [312]
+          example: [312]
         memory_used_mb:
           type: integer
           description: Actual memory used, recorded after the job completes. Null until done.
-          examples: [287]
+          example: [287]
         queued_at:
           type: string
           format: date-time
@@ -389,15 +389,15 @@ components:
         duration_ms:
           type: integer
           description: Total processing time in milliseconds. Null until finished.
-          examples: [5120]
+          example: [5120]
         screenshot_url:
           type: string
           description: URL to fetch the screenshot file. Only present when status is `done`.
-          examples: ["/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"]
+          example: ["/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"]
         error:
           type: string
           description: Human-readable error message. Only present when status is `failed`.
-          examples: ["context deadline exceeded: page did not load within 30s"]
+          example: ["context deadline exceeded: page did not load within 30s"]
 
     JobStatus:
       type: string
@@ -415,4 +415,4 @@ components:
         error:
           type: string
           description: Human-readable description of what went wrong.
-          examples: ["unexpected error occurred"]
+          example: ["unexpected error occurred"]
