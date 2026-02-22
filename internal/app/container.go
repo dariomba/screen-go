@@ -8,6 +8,7 @@ import (
 )
 
 type params struct {
+	Addr string
 }
 
 type services struct {
@@ -32,7 +33,7 @@ func NewContainer() *Container {
 func (ctr *Container) HTTPServer() *http.Server {
 	if ctr.services.httpServer == nil {
 		ctr.services.httpServer = &http.Server{
-			Addr:    ":8080",
+			Addr:    ctr.params.Addr,
 			Handler: ctr.OAPIHandler(),
 		}
 	}
