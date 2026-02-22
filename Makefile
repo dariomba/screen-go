@@ -6,7 +6,7 @@ generate:
 
 # ── Development ───────────────────────────────────────────────────────────────
 run:
-	go run ./cmd/
+	go run main.go serve
 
 test:
 	go test ./... -race -count=1 -timeout=60s
