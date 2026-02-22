@@ -21,8 +21,7 @@ tags:
     description: Retrieve processed screenshot files
 
 paths:
-
-  /job:
+  /v1/job:
     post:
       tags: [Jobs]
       summary: Submit a screenshot job
@@ -98,7 +97,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /job/{id}:
+  /v1/job/{id}:
     get:
       tags: [Jobs]
       summary: Get job status
@@ -206,7 +205,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /screenshot/{id}:
+  /v1/screenshot/{id}:
     get:
       tags: [Screenshots]
       summary: Download screenshot file
