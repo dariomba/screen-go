@@ -12,7 +12,8 @@ import (
 )
 
 type serveCmdFlags struct {
-	Addr string
+	HttpHost string
+	HttpPort string
 }
 
 func createServeCmd(ctr *app.Container) *cobra.Command {
@@ -29,7 +30,7 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 			defer stop()
 
 			go func() {
-				log.Printf("Starting server on %s", ctr.Addr)
+				log.Printf("Starting server on %s:%s...\n", ctr.HttpHost, ctr.HttpPort)
 				if err := ctr.HTTPServer().ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					log.Fatalf("Server failed: %v", err)
 				}
@@ -51,9 +52,11 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 }
 
 func addServeCmdFlags(cmd *cobra.Command, flags *serveCmdFlags) {
-	cmd.Flags().StringVar(&flags.Addr, "addr", ":8080", "Address to listen on (e.g., ':8080')")
+	cmd.Flags().StringVar(&flags.HttpHost, "http-host", "", "HTTP host to listen on")
+	cmd.Flags().StringVar(&flags.HttpPort, "http-port", "8080", "HTTP port to listen on")
 }
 
 func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
-	ctr.Addr = flags.Addr
+	ctr.HttpHost = flags.HttpHost
+	ctr.HttpPort = flags.HttpPort
 }

@@ -8,6 +8,7 @@ require (
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/oapi-codegen/runtime v1.1.2
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 )
 
@@ -34,7 +35,6 @@ require (
 	github.com/speakeasy-api/openapi-overlay v0.10.2 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
 	github.com/woodsbury/decimal128 v1.3.0 // indirect
