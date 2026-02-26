@@ -43,7 +43,7 @@ func (ctr *Container) HTTPServer() *http.Server {
 
 func (ctr *Container) OAPIHandler() http.Handler {
 	if ctr.services.oapiHandler == nil {
-		ctr.services.oapiHandler = openapi.HandlerFromMux(
+		ctr.services.oapiHandler = openapi.HandlerWithOptions(
 			openapi.NewStrictHandler(
 				openapi.NewServer(
 					ctr.CreateJobUseCase(),
@@ -52,7 +52,7 @@ func (ctr *Container) OAPIHandler() http.Handler {
 				),
 				nil, // You can add middleware here if needed
 			),
-			http.NewServeMux(),
+			openapi.StdHTTPServerOptions{},
 		)
 	}
 	return ctr.services.oapiHandler
