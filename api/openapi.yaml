@@ -28,7 +28,7 @@ paths:
       description: |
         Accepts a screenshot request and immediately returns a job ID.
         The job is queued and will be processed when enough pod memory
-        is available. Poll `GET /job/{id}` to track progress.
+        is available. Poll `GET /v1/job/{id}` to track progress.
       operationId: createJob
       requestBody:
         required: true
@@ -61,9 +61,8 @@ paths:
                 $ref: '#/components/schemas/CreateJobResponse'
               example:
                 job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
-                status: queued
-                status_url: "/job/01J4KZQX8G3N2P7M5R9T0VWYE6"
-                estimated_memory_mb: 312
+                status: pending
+                status_url: "/v1/job/01J4KZQX8G3N2P7M5R9T0VWYE6"
         '400':
           description: Invalid request body or unsupported URL
           content:
@@ -106,7 +105,7 @@ paths:
         `status` is either `done` or `failed`.
 
         When `status` is `done`, a `screenshot_url` field is included
-        pointing to `GET /screenshot/{id}`.
+        pointing to `GET /v1/screenshot/{id}`.
       operationId: getJobStatus
       parameters:
         - $ref: '#/components/parameters/JobId'
@@ -118,7 +117,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
               examples:
-                queued:
+                pending:
                   summary: Job waiting for memory
                   value:
                     job_id: "01J4KZQX8G3N2P7M5R9T0VWYE6"
@@ -127,9 +126,8 @@ paths:
                     width: 1280
                     height: 800
                     full_page: false
-                    status: queued
-                    estimated_memory_mb: 312
-                    queued_at: "2024-01-15T10:00:00Z"
+                    status: pending
+                    created_at: "2024-01-15T10:00:00Z"
                     started_at: null
                     finished_at: null
                     duration_ms: null
@@ -146,8 +144,7 @@ paths:
                     height: 800
                     full_page: false
                     status: processing
-                    estimated_memory_mb: 312
-                    queued_at: "2024-01-15T10:00:00Z"
+                    created_at: "2024-01-15T10:00:00Z"
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: null
                     duration_ms: null
@@ -164,8 +161,7 @@ paths:
                     height: 800
                     full_page: false
                     status: done
-                    estimated_memory_mb: 312
-                    queued_at: "2024-01-15T10:00:00Z"
+                    created_at: "2024-01-15T10:00:00Z"
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: "2024-01-15T10:00:08Z"
                     duration_ms: 5120
@@ -182,8 +178,7 @@ paths:
                     height: 800
                     full_page: false
                     status: failed
-                    estimated_memory_mb: 312
-                    queued_at: "2024-01-15T10:00:00Z"
+                    created_at: "2024-01-15T10:00:00Z"
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: "2024-01-15T10:00:33Z"
                     duration_ms: 30000
@@ -268,13 +263,12 @@ components:
       name: id
       in: path
       required: true
-      description: ID job identifier returned by `POST /job`
+      description: ID job identifier returned by `POST /v1/job`
       schema:
         type: string
         example: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
 
   schemas:
-
     CreateJobRequest:
       type: object
       required: [url]
@@ -310,7 +304,7 @@ components:
 
     CreateJobResponse:
       type: object
-      required: [job_id, status, status_url, estimated_memory_mb]
+      required: [job_id, status, status_url]
       properties:
         job_id:
           type: string
@@ -318,18 +312,12 @@ components:
           example: ["01J4KZQX8G3N2P7M5R9T0VWYE6"]
         status:
           type: string
-          enum: [queued]
-          description: Initial status is always `queued`.
+          enum: [pending]
+          description: Initial status is always `pending`.
         status_url:
           type: string
           description: Convenience URL to poll for job status.
-          example: ["/job/01J4KZQX8G3N2P7M5R9T0VWYE6"]
-        estimated_memory_mb:
-          type: integer
-          description: |
-            Estimated memory this job will reserve from the pod budget
-            while processing. Informational only.
-          example: [312]
+          example: ["/v1/job/01J4KZQX8G3N2P7M5R9T0VWYE6"]
 
     Job:
       type: object
@@ -341,8 +329,7 @@ components:
         - height
         - full_page
         - status
-        - estimated_memory_mb
-        - queued_at
+        - created_at
       properties:
         job_id:
           type: string
@@ -365,22 +352,14 @@ components:
           example: [false]
         status:
           $ref: '#/components/schemas/JobStatus'
-        estimated_memory_mb:
-          type: integer
-          description: Memory reserved from the pod budget for this job.
-          example: [312]
         memory_used_mb:
           type: integer
           description: Actual memory used, recorded after the job completes. Null until done.
           example: [287]
-        queued_at:
-          type: string
-          format: date-time
-          description: When the job was accepted by the service.
         started_at:
           type: string
           format: date-time
-          description: When the job started processing. Null while still queued.
+          description: When the job started processing. Null while still pending.
         finished_at:
           type: string
           format: date-time
@@ -400,9 +379,9 @@ components:
 
     JobStatus:
       type: string
-      enum: [queued, processing, done, failed]
+      enum: [pending, processing, done, failed]
       description: |
-        - `queued` — waiting for available pod memory
+        - `pending` — waiting for available pod memory
         - `processing` — Chrome is actively rendering the page
         - `done` — screenshot is ready to download
         - `failed` — job encountered an unrecoverable error

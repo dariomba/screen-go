@@ -14,6 +14,12 @@ import (
 type serveCmdFlags struct {
 	HttpHost string
 	HttpPort string
+
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
 }
 
 func createServeCmd(ctr *app.Container) *cobra.Command {
@@ -54,9 +60,20 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 func addServeCmdFlags(cmd *cobra.Command, flags *serveCmdFlags) {
 	cmd.Flags().StringVar(&flags.HttpHost, "http-host", "", "HTTP host to listen on")
 	cmd.Flags().StringVar(&flags.HttpPort, "http-port", "8080", "HTTP port to listen on")
+	cmd.Flags().StringVar(&flags.DBHost, "db-host", "localhost", "Database host")
+	cmd.Flags().StringVar(&flags.DBPort, "db-port", "5432", "Database port")
+	cmd.Flags().StringVar(&flags.DBUser, "db-user", "postgres", "Database user")
+	cmd.Flags().StringVar(&flags.DBPassword, "db-password", "postgres", "Database password")
+	cmd.Flags().StringVar(&flags.DBName, "db-name", "screengodb", "Database name")
 }
 
 func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
 	ctr.HttpHost = flags.HttpHost
 	ctr.HttpPort = flags.HttpPort
+
+	ctr.DBHost = flags.DBHost
+	ctr.DBPort = flags.DBPort
+	ctr.DBUser = flags.DBUser
+	ctr.DBPassword = flags.DBPassword
+	ctr.DBName = flags.DBName
 }
