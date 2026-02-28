@@ -1,23 +1,37 @@
 package app
 
 import (
+	"context"
+	"log"
 	"net/http"
 
 	"github.com/dariomba/screen-go/internal/openapi"
 	oapiv1 "github.com/dariomba/screen-go/internal/openapi/v1"
+	"github.com/dariomba/screen-go/internal/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
+	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
 
 type params struct {
 	HttpHost string
 	HttpPort string
+
+	DBHost     string
+	DBPort     string
+	DBUser     string
+	DBPassword string
+	DBName     string
 }
 
 type services struct {
-	httpServer           *http.Server
-	oapiHandler          http.Handler
-	createJobUseCase     openapi.CreateJob
-	getJobStatusUseCase  openapi.GetJobStatus
-	getScreenshotUseCase openapi.GetScreenshot
+	httpServer                     *http.Server
+	oapiHandler                    http.Handler
+	oapiRequestValidatorMiddleware openapi.MiddlewareFunc
+	database                       *pgxpool.Pool
+	query                          *postgres.Queries
+	createJobUseCase               openapi.CreateJob
+	getJobStatusUseCase            openapi.GetJobStatus
+	getScreenshotUseCase           openapi.GetScreenshot
 }
 
 type Container struct {
@@ -32,49 +46,100 @@ func NewContainer() *Container {
 }
 
 func (ctr *Container) HTTPServer() *http.Server {
-	if ctr.services.httpServer == nil {
-		ctr.services.httpServer = &http.Server{
+	if ctr.httpServer == nil {
+		ctr.httpServer = &http.Server{
 			Addr:    ctr.HttpHost + ":" + ctr.HttpPort,
 			Handler: ctr.OAPIHandler(),
 		}
 	}
-	return ctr.services.httpServer
+	return ctr.httpServer
 }
 
 func (ctr *Container) OAPIHandler() http.Handler {
-	if ctr.services.oapiHandler == nil {
-		ctr.services.oapiHandler = openapi.HandlerWithOptions(
-			openapi.NewStrictHandler(
+	if ctr.oapiHandler == nil {
+		middlewares := []openapi.MiddlewareFunc{
+			ctr.OAPIRequestValidatorMiddleware(),
+		}
+
+		ctr.oapiHandler = openapi.HandlerWithOptions(
+			openapi.NewStrictHandlerWithOptions(
 				openapi.NewServer(
 					ctr.CreateJobUseCase(),
 					ctr.GetJobStatusUseCase(),
 					ctr.GetScreenshotUseCase(),
 				),
-				nil, // You can add middleware here if needed
+				nil, // Strict middlewares
+				openapi.StrictHTTPServerOptions{
+					RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+						log.Printf("Request error: %v", err)
+
+						http.Error(w, "invalid request", http.StatusBadRequest)
+					},
+					ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+						log.Printf("Response error: %v", err)
+
+						http.Error(w, "internal server error", http.StatusInternalServerError)
+					},
+				},
 			),
-			openapi.StdHTTPServerOptions{},
+			openapi.StdHTTPServerOptions{
+				Middlewares: middlewares,
+			},
 		)
 	}
-	return ctr.services.oapiHandler
+	return ctr.oapiHandler
+}
+
+func (ctr *Container) OAPIRequestValidatorMiddleware() openapi.MiddlewareFunc {
+	if ctr.oapiRequestValidatorMiddleware == nil {
+		openApiSwagger, err := openapi.GetSwagger()
+		if err != nil {
+			panic(err)
+		}
+
+		openApiSwagger.Servers = nil
+
+		ctr.oapiRequestValidatorMiddleware = nethttpmiddleware.OapiRequestValidator(openApiSwagger)
+	}
+	return ctr.oapiRequestValidatorMiddleware
+}
+
+func (ctr *Container) Database() *pgxpool.Pool {
+	if ctr.database == nil {
+		connStr := "postgres://" + ctr.DBUser + ":" + ctr.DBPassword + "@" + ctr.DBHost + ":" + ctr.DBPort + "/" + ctr.DBName
+		conn, err := pgxpool.New(context.Background(), connStr)
+		if err != nil {
+			panic(err)
+		}
+		ctr.database = conn
+	}
+	return ctr.database
+}
+
+func (ctr *Container) Query() *postgres.Queries {
+	if ctr.query == nil {
+		ctr.query = postgres.New(ctr.Database())
+	}
+	return ctr.query
 }
 
 func (ctr *Container) CreateJobUseCase() openapi.CreateJob {
-	if ctr.services.createJobUseCase == nil {
-		ctr.services.createJobUseCase = oapiv1.NewCreateJob()
+	if ctr.createJobUseCase == nil {
+		ctr.createJobUseCase = oapiv1.NewCreateJob(ctr.Query())
 	}
-	return ctr.services.createJobUseCase
+	return ctr.createJobUseCase
 }
 
 func (ctr *Container) GetJobStatusUseCase() openapi.GetJobStatus {
-	if ctr.services.getJobStatusUseCase == nil {
-		ctr.services.getJobStatusUseCase = oapiv1.NewGetJobStatus()
+	if ctr.getJobStatusUseCase == nil {
+		ctr.getJobStatusUseCase = oapiv1.NewGetJobStatus()
 	}
-	return ctr.services.getJobStatusUseCase
+	return ctr.getJobStatusUseCase
 }
 
 func (ctr *Container) GetScreenshotUseCase() openapi.GetScreenshot {
-	if ctr.services.getScreenshotUseCase == nil {
-		ctr.services.getScreenshotUseCase = oapiv1.NewGetScreenshot()
+	if ctr.getScreenshotUseCase == nil {
+		ctr.getScreenshotUseCase = oapiv1.NewGetScreenshot()
 	}
-	return ctr.services.getScreenshotUseCase
+	return ctr.getScreenshotUseCase
 }
