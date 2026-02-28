@@ -79,12 +79,12 @@ func (ctr *Container) OAPIHandler() http.Handler {
 					RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 						log.Printf("Request error: %v", err)
 
-						http.Error(w, "invalid request", http.StatusBadRequest)
+						openapi.WriteErrorJSON(w, "invalid request", http.StatusBadRequest)
 					},
 					ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
 						log.Printf("Response error: %v", err)
 
-						http.Error(w, "internal server error", http.StatusInternalServerError)
+						openapi.WriteErrorJSON(w, "internal server error", http.StatusInternalServerError)
 					},
 				},
 			),
@@ -105,7 +105,13 @@ func (ctr *Container) OAPIRequestValidatorMiddleware() openapi.MiddlewareFunc {
 
 		openApiSwagger.Servers = nil
 
-		ctr.oapiRequestValidatorMiddleware = nethttpmiddleware.OapiRequestValidator(openApiSwagger)
+		ctr.oapiRequestValidatorMiddleware = nethttpmiddleware.OapiRequestValidatorWithOptions(openApiSwagger, &nethttpmiddleware.Options{
+			ErrorHandler: func(w http.ResponseWriter, message string, statusCode int) {
+				log.Printf("Request validation error: %s", message)
+
+				openapi.WriteErrorJSON(w, message, http.StatusBadRequest)
+			},
+		})
 	}
 	return ctr.oapiRequestValidatorMiddleware
 }
