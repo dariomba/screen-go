@@ -7,6 +7,8 @@ package postgres
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createJob = `-- name: CreateJob :one
@@ -19,7 +21,13 @@ INSERT INTO jobs (
     full_page,
     status
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, 'pending'
+    $1,
+    $2,
+    COALESCE($3::job_format, 'png'),
+    COALESCE($4::integer, 1280),
+    COALESCE($5::integer, 800),
+    COALESCE($6::boolean, false),
+    'pending'
 )
 RETURNING id, url, format, width, height, full_page, status, memory_used_mb, started_at, finished_at, created_at, updated_at
 `
@@ -27,10 +35,10 @@ RETURNING id, url, format, width, height, full_page, status, memory_used_mb, sta
 type CreateJobParams struct {
 	ID       string
 	Url      string
-	Format   JobFormat
-	Width    int32
-	Height   int32
-	FullPage bool
+	Format   NullJobFormat
+	Width    pgtype.Int4
+	Height   pgtype.Int4
+	FullPage pgtype.Bool
 }
 
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, error) {

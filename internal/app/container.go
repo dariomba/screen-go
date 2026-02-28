@@ -8,6 +8,7 @@ import (
 	"github.com/dariomba/screen-go/internal/openapi"
 	oapiv1 "github.com/dariomba/screen-go/internal/openapi/v1"
 	"github.com/dariomba/screen-go/internal/postgres"
+	"github.com/dariomba/screen-go/internal/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
@@ -21,6 +22,8 @@ type params struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	StatusPollingEndpoint string
 }
 
 type services struct {
@@ -29,6 +32,7 @@ type services struct {
 	oapiRequestValidatorMiddleware openapi.MiddlewareFunc
 	database                       *pgxpool.Pool
 	query                          *postgres.Queries
+	uuidGenerator                  uuid.UUIDGenerator
 	createJobUseCase               openapi.CreateJob
 	getJobStatusUseCase            openapi.GetJobStatus
 	getScreenshotUseCase           openapi.GetScreenshot
@@ -41,7 +45,9 @@ type Container struct {
 
 func NewContainer() *Container {
 	return &Container{
-		// Initialize shared dependencies here
+		params: params{
+			StatusPollingEndpoint: "/v1/job/",
+		},
 	}
 }
 
@@ -123,9 +129,21 @@ func (ctr *Container) Query() *postgres.Queries {
 	return ctr.query
 }
 
+func (ctr *Container) UUIDGenerator() uuid.UUIDGenerator {
+	if ctr.uuidGenerator == nil {
+		ctr.uuidGenerator = uuid.NewUlidGenerator()
+	}
+	return ctr.uuidGenerator
+}
+
 func (ctr *Container) CreateJobUseCase() openapi.CreateJob {
 	if ctr.createJobUseCase == nil {
-		ctr.createJobUseCase = oapiv1.NewCreateJob(ctr.Query())
+		ctr.createJobUseCase = oapiv1.NewCreateJob(
+			ctr.Query(),
+			ctr.UUIDGenerator(),
+			oapiv1.CreateJobConfig{
+				StatusEndpoint: ctr.StatusPollingEndpoint,
+			})
 	}
 	return ctr.createJobUseCase
 }
