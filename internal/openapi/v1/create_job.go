@@ -2,11 +2,11 @@ package v1
 
 import (
 	"context"
-	"log"
-	"time"
 
+	"github.com/dariomba/screen-go/internal/model"
 	"github.com/dariomba/screen-go/internal/openapi"
 	"github.com/dariomba/screen-go/internal/postgres"
+	"github.com/dariomba/screen-go/internal/processor"
 	"github.com/dariomba/screen-go/internal/uuid"
 )
 
@@ -20,13 +20,15 @@ type CreateJobConfig struct {
 
 type CreateJob struct {
 	uuidGenerator uuid.UUIDGenerator
+	jobProcessor  processor.Processor
 	jobQuerier    JobQuerier
 	config        CreateJobConfig
 }
 
-func NewCreateJob(jobQuerier JobQuerier, uuidGenerator uuid.UUIDGenerator, config CreateJobConfig) *CreateJob {
+func NewCreateJob(jobQuerier JobQuerier, jobProcessor processor.Processor, uuidGenerator uuid.UUIDGenerator, config CreateJobConfig) *CreateJob {
 	return &CreateJob{
 		jobQuerier:    jobQuerier,
+		jobProcessor:  jobProcessor,
 		uuidGenerator: uuidGenerator,
 		config:        config,
 	}
@@ -40,21 +42,22 @@ func (uc *CreateJob) Execute(ctx context.Context, request openapi.CreateJobReque
 		return openapi.CreateJob500JSONResponse{}, err
 	}
 
-	go uc.processJob(job)
+	go func() {
+		uc.jobProcessor.Process(context.Background(), &model.Job{
+			ID:       job.ID,
+			URL:      job.Url,
+			Format:   model.JobFormat(job.Format),
+			Width:    job.Width,
+			Height:   job.Height,
+			FullPage: job.FullPage,
+		})
+	}()
 
 	return openapi.CreateJob202JSONResponse{
 		JobID:     job.ID,
 		Status:    openapi.CreateJobResponseStatusPending,
 		StatusURL: uc.config.StatusEndpoint + job.ID,
 	}, nil
-}
-
-func (uc *CreateJob) processJob(job postgres.Job) {
-	log.Printf("Job %s is being processed...", job.ID)
-
-	time.Sleep(2 * time.Second)
-
-	log.Printf("Job %s processed!", job.ID)
 }
 
 var _ openapi.CreateJob = (*CreateJob)(nil)

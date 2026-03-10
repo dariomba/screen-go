@@ -17,7 +17,13 @@ const (
 	replaceHyphenWithCamelCase = false
 )
 
+type rootCmdFlags struct {
+	MaxProcessingThreads int
+}
+
 func NewRootCmd(ctr *app.Container) *cobra.Command {
+	var rootCmdFlags rootCmdFlags
+
 	rootCmd := &cobra.Command{
 		Use:   "screen-go",
 		Short: "Memory-aware screenshot service with async job processing",
@@ -27,14 +33,28 @@ It renders website screenshots via headless Chrome with intelligent memory manag
 that prevents OOM crashes. Jobs are queued when memory is scarce and processed as 
 capacity becomes available, making it safe to deploy with predictable resource limits.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			addRootContainerParams(ctr, &rootCmdFlags)
+
 			return initViper(cmd)
 		},
 	}
+
+	addRootCmdFlags(rootCmd)
 
 	// Add subcommands
 	rootCmd.AddCommand(createServeCmd(ctr))
 
 	return rootCmd
+}
+
+func addRootCmdFlags(cmd *cobra.Command) {
+	var rootCmdFlags rootCmdFlags
+
+	cmd.PersistentFlags().IntVar(&rootCmdFlags.MaxProcessingThreads, "max-processing-threads", 10, "Maximum number of concurrent processing threads for screenshot jobs")
+}
+
+func addRootContainerParams(ctr *app.Container, flags *rootCmdFlags) {
+	ctr.MaxProcessingThreads = flags.MaxProcessingThreads
 }
 
 func initViper(cmd *cobra.Command) error {

@@ -8,6 +8,7 @@ import (
 	"github.com/dariomba/screen-go/internal/openapi"
 	oapiv1 "github.com/dariomba/screen-go/internal/openapi/v1"
 	"github.com/dariomba/screen-go/internal/postgres"
+	"github.com/dariomba/screen-go/internal/processor"
 	"github.com/dariomba/screen-go/internal/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
@@ -24,6 +25,7 @@ type params struct {
 	DBName     string
 
 	StatusPollingEndpoint string
+	MaxProcessingThreads  int
 }
 
 type services struct {
@@ -33,6 +35,7 @@ type services struct {
 	database                       *pgxpool.Pool
 	query                          *postgres.Queries
 	uuidGenerator                  uuid.UUIDGenerator
+	jobProcessor                   processor.Processor
 	createJobUseCase               openapi.CreateJob
 	getJobStatusUseCase            openapi.GetJobStatus
 	getScreenshotUseCase           openapi.GetScreenshot
@@ -142,10 +145,20 @@ func (ctr *Container) UUIDGenerator() uuid.UUIDGenerator {
 	return ctr.uuidGenerator
 }
 
+func (ctr *Container) JobProcessor() processor.Processor {
+	if ctr.jobProcessor == nil {
+		ctr.jobProcessor = processor.NewJobProcessor(processor.JobProcessorConfig{
+			MaxThreads: ctr.MaxProcessingThreads,
+		})
+	}
+	return ctr.jobProcessor
+}
+
 func (ctr *Container) CreateJobUseCase() openapi.CreateJob {
 	if ctr.createJobUseCase == nil {
 		ctr.createJobUseCase = oapiv1.NewCreateJob(
 			ctr.Query(),
+			ctr.JobProcessor(),
 			ctr.UUIDGenerator(),
 			oapiv1.CreateJobConfig{
 				StatusEndpoint: ctr.StatusPollingEndpoint,
