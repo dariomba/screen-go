@@ -5,10 +5,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/dariomba/screen-go/internal/openapi"
-	oapiv1 "github.com/dariomba/screen-go/internal/openapi/v1"
-	"github.com/dariomba/screen-go/internal/postgres"
-	"github.com/dariomba/screen-go/internal/uuid"
+	"github.com/dariomba/screen-go/internal/adapters/openapi"
+	oapiv1 "github.com/dariomba/screen-go/internal/adapters/openapi/v1"
+	"github.com/dariomba/screen-go/internal/adapters/postgres"
+	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
+	"github.com/dariomba/screen-go/internal/adapters/processor"
+	"github.com/dariomba/screen-go/internal/adapters/uuid"
+	"github.com/dariomba/screen-go/internal/application/usecase"
+	"github.com/dariomba/screen-go/internal/ports"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
@@ -24,6 +28,7 @@ type params struct {
 	DBName     string
 
 	StatusPollingEndpoint string
+	MaxProcessingThreads  int
 }
 
 type services struct {
@@ -31,11 +36,14 @@ type services struct {
 	oapiHandler                    http.Handler
 	oapiRequestValidatorMiddleware openapi.MiddlewareFunc
 	database                       *pgxpool.Pool
-	query                          *postgres.Queries
-	uuidGenerator                  uuid.UUIDGenerator
-	createJobUseCase               openapi.CreateJob
-	getJobStatusUseCase            openapi.GetJobStatus
-	getScreenshotUseCase           openapi.GetScreenshot
+	query                          *sqlc.Queries
+	postgresJobRepository          *postgres.JobRepository
+	uuidGenerator                  ports.UUIDGenerator
+	jobProcessor                   ports.JobProcessor
+	createJobUseCase               *usecase.CreateJob
+	createJobHandler               openapi.CreateJob
+	getJobStatusHandler            openapi.GetJobStatus
+	getScreenshotHandler           openapi.GetScreenshot
 }
 
 type Container struct {
@@ -70,9 +78,9 @@ func (ctr *Container) OAPIHandler() http.Handler {
 		ctr.oapiHandler = openapi.HandlerWithOptions(
 			openapi.NewStrictHandlerWithOptions(
 				openapi.NewServer(
-					ctr.CreateJobUseCase(),
-					ctr.GetJobStatusUseCase(),
-					ctr.GetScreenshotUseCase(),
+					ctr.CreateJobHandler(),
+					ctr.GetJobStatusHandler(),
+					ctr.GetScreenshotHandler(),
 				),
 				nil, // Strict middlewares
 				openapi.StrictHTTPServerOptions{
@@ -128,42 +136,70 @@ func (ctr *Container) Database() *pgxpool.Pool {
 	return ctr.database
 }
 
-func (ctr *Container) Query() *postgres.Queries {
+func (ctr *Container) Query() *sqlc.Queries {
 	if ctr.query == nil {
-		ctr.query = postgres.New(ctr.Database())
+		ctr.query = sqlc.New(ctr.Database())
 	}
 	return ctr.query
 }
 
-func (ctr *Container) UUIDGenerator() uuid.UUIDGenerator {
+func (ctr *Container) UUIDGenerator() ports.UUIDGenerator {
 	if ctr.uuidGenerator == nil {
 		ctr.uuidGenerator = uuid.NewUlidGenerator()
 	}
 	return ctr.uuidGenerator
 }
 
-func (ctr *Container) CreateJobUseCase() openapi.CreateJob {
+func (ctr *Container) JobProcessor() ports.JobProcessor {
+	if ctr.jobProcessor == nil {
+		ctr.jobProcessor = processor.NewJobProcessor(processor.JobProcessorConfig{
+			MaxThreads: ctr.MaxProcessingThreads,
+		})
+	}
+	return ctr.jobProcessor
+}
+
+func (ctr *Container) PostgresJobRepository() *postgres.JobRepository {
+	if ctr.postgresJobRepository == nil {
+		ctr.postgresJobRepository = postgres.NewJobRepository(ctr.Query())
+	}
+	return ctr.postgresJobRepository
+}
+
+func (ctr *Container) CreateJobUseCase() *usecase.CreateJob {
 	if ctr.createJobUseCase == nil {
-		ctr.createJobUseCase = oapiv1.NewCreateJob(
-			ctr.Query(),
+		ctr.createJobUseCase = usecase.NewCreateJob(
+			ctr.PostgresJobRepository(),
+			ctr.JobProcessor(),
 			ctr.UUIDGenerator(),
-			oapiv1.CreateJobConfig{
+			usecase.CreateJobConfig{
 				StatusEndpoint: ctr.StatusPollingEndpoint,
-			})
+			},
+		)
 	}
 	return ctr.createJobUseCase
 }
 
-func (ctr *Container) GetJobStatusUseCase() openapi.GetJobStatus {
-	if ctr.getJobStatusUseCase == nil {
-		ctr.getJobStatusUseCase = oapiv1.NewGetJobStatus()
+func (ctr *Container) CreateJobHandler() openapi.CreateJob {
+	if ctr.createJobHandler == nil {
+		ctr.createJobHandler = oapiv1.NewCreateJobHandler(
+			ctr.CreateJobUseCase(),
+			oapiv1.CreateJobConfig{
+				StatusEndpoint: ctr.StatusPollingEndpoint,
+			})
 	}
-	return ctr.getJobStatusUseCase
+	return ctr.createJobHandler
 }
 
-func (ctr *Container) GetScreenshotUseCase() openapi.GetScreenshot {
-	if ctr.getScreenshotUseCase == nil {
-		ctr.getScreenshotUseCase = oapiv1.NewGetScreenshot()
+func (ctr *Container) GetJobStatusHandler() openapi.GetJobStatus {
+	if ctr.getJobStatusHandler == nil {
+		ctr.getJobStatusHandler = oapiv1.NewGetJobStatusHandler()
 	}
-	return ctr.getScreenshotUseCase
+	return ctr.getJobStatusHandler
+}
+func (ctr *Container) GetScreenshotHandler() openapi.GetScreenshot {
+	if ctr.getScreenshotHandler == nil {
+		ctr.getScreenshotHandler = oapiv1.NewGetScreenshotHandler()
+	}
+	return ctr.getScreenshotHandler
 }

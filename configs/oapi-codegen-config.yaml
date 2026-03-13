@@ -7,4 +7,4 @@ generate:
   embedded-spec: true
 output-options:
   name-normalizer: ToCamelCaseWithInitialisms
-output: internal/openapi/api.gen.go
+output: internal/adapters/openapi/api.gen.go
