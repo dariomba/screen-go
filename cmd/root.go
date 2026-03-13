@@ -39,7 +39,7 @@ capacity becomes available, making it safe to deploy with predictable resource l
 		},
 	}
 
-	addRootCmdFlags(rootCmd)
+	addRootCmdFlags(rootCmd, &rootCmdFlags)
 
 	// Add subcommands
 	rootCmd.AddCommand(createServeCmd(ctr))
@@ -47,10 +47,8 @@ capacity becomes available, making it safe to deploy with predictable resource l
 	return rootCmd
 }
 
-func addRootCmdFlags(cmd *cobra.Command) {
-	var rootCmdFlags rootCmdFlags
-
-	cmd.PersistentFlags().IntVar(&rootCmdFlags.MaxProcessingThreads, "max-processing-threads", 10, "Maximum number of concurrent processing threads for screenshot jobs")
+func addRootCmdFlags(cmd *cobra.Command, flags *rootCmdFlags) {
+	cmd.PersistentFlags().IntVar(&flags.MaxProcessingThreads, "max-processing-threads", 10, "Maximum number of concurrent processing threads for screenshot jobs")
 }
 
 func addRootContainerParams(ctr *app.Container, flags *rootCmdFlags) {

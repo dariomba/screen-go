@@ -43,6 +43,7 @@ func NewJobProcessor(config JobProcessorConfig) *JobProcessor {
 
 func (jp *JobProcessor) Process(ctx context.Context, job *domain.Job) {
 	// Simply add the job to the channel for processing by workers
+	log.Printf("Received job %s: %s\n", job.ID, job.URL)
 	jp.jobs <- job
 }
 
