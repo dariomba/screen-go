@@ -8,7 +8,7 @@ import (
 
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
-	"github.com/dariomba/screen-go/internal/model"
+	"github.com/dariomba/screen-go/internal/domain"
 )
 
 type JobProcessorConfig struct {
@@ -18,14 +18,14 @@ type JobProcessorConfig struct {
 type JobProcessor struct {
 	config JobProcessorConfig
 
-	jobs chan *model.Job
+	jobs chan *domain.Job
 
 	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 func NewJobProcessor(config JobProcessorConfig) *JobProcessor {
-	jobs := make(chan *model.Job, config.MaxThreads)
+	jobs := make(chan *domain.Job, config.MaxThreads)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -41,7 +41,7 @@ func NewJobProcessor(config JobProcessorConfig) *JobProcessor {
 	return jp
 }
 
-func (jp *JobProcessor) Process(ctx context.Context, job *model.Job) {
+func (jp *JobProcessor) Process(ctx context.Context, job *domain.Job) {
 	// Simply add the job to the channel for processing by workers
 	jp.jobs <- job
 }
@@ -70,7 +70,7 @@ func (jp *JobProcessor) startWorkers() {
 					defer cancel()
 
 					var buf []byte
-					if job.Format == model.JobFormatPdf {
+					if job.Format == domain.JobFormatPdf {
 						if err := chromedp.Run(ctx, printToPDF(url.String(), &buf)); err != nil {
 							log.Printf("failed to capture PDF for job %s: %v", job.ID, err)
 							return

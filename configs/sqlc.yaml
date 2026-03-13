@@ -5,6 +5,6 @@ sql:
     schema: "../tools/migrate"
     gen:
       go:
-        package: "postgres"
-        out: "../internal/postgres"
+        package: "sqlc"
+        out: "../internal/adapters/postgres/sqlc"
         sql_package: "pgx/v5"
