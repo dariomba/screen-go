@@ -11,7 +11,7 @@ CREATE TABLE jobs (
     height              INTEGER         NOT NULL DEFAULT 800,
     full_page           BOOLEAN         NOT NULL DEFAULT FALSE,
     status              job_status      NOT NULL DEFAULT 'pending',
-    memory_used_mb      INTEGER,
+    error               TEXT,
     started_at          TIMESTAMPTZ,
     finished_at         TIMESTAMPTZ,
     created_at          TIMESTAMPTZ     NOT NULL DEFAULT NOW(),

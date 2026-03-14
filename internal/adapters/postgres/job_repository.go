@@ -42,3 +42,18 @@ func (r *JobRepository) CreateJob(ctx context.Context, job *domain.Job) (*domain
 		UpdatedAt: createdJob.UpdatedAt.Time,
 	}, nil
 }
+
+func (r *JobRepository) UpdateJobToProcessing(ctx context.Context, jobID string) error {
+	return r.queries.UpdateJobToProcessing(ctx, jobID)
+}
+
+func (r *JobRepository) UpdateJobToCompleted(ctx context.Context, jobID string) error {
+	return r.queries.UpdateJobToDone(ctx, jobID)
+}
+
+func (r *JobRepository) UpdateJobToFailed(ctx context.Context, jobID string, errorMessage string) error {
+	return r.queries.UpdateJobToFailed(ctx, sqlc.UpdateJobToFailedParams{
+		ID:    jobID,
+		Error: toPgText(errorMessage),
+	})
+}

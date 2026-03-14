@@ -16,6 +16,10 @@ func toPgBool(b bool) pgtype.Bool {
 	return pgtype.Bool{Bool: b, Valid: true}
 }
 
+func toPgText(s string) pgtype.Text {
+	return pgtype.Text{String: s, Valid: true}
+}
+
 func toPgNullJobFormat(f domain.JobFormat) sqlc.NullJobFormat {
 	return sqlc.NullJobFormat{
 		JobFormat: sqlc.JobFormat(f),

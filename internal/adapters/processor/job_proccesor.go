@@ -3,12 +3,10 @@ package processor
 import (
 	"context"
 	"net/url"
-	"os"
 
-	"github.com/chromedp/cdproto/page"
-	"github.com/chromedp/chromedp"
 	"github.com/dariomba/screen-go/internal/domain"
 	"github.com/dariomba/screen-go/internal/logger"
+	"github.com/dariomba/screen-go/internal/ports"
 )
 
 type JobProcessorConfig struct {
@@ -21,7 +19,9 @@ type jobWithContext struct {
 }
 
 type JobProcessor struct {
-	config JobProcessorConfig
+	jobRepository ports.JobRepository
+	chromeDriver  ports.ChromeDriver
+	config        JobProcessorConfig
 
 	jobs chan *jobWithContext
 
@@ -29,16 +29,18 @@ type JobProcessor struct {
 	cancel context.CancelFunc
 }
 
-func NewJobProcessor(config JobProcessorConfig) *JobProcessor {
+func NewJobProcessor(chromeDriver ports.ChromeDriver, jobRepository ports.JobRepository, config JobProcessorConfig) *JobProcessor {
 	jobs := make(chan *jobWithContext, config.MaxThreads)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jp := &JobProcessor{
-		config: config,
-		jobs:   jobs,
-		ctx:    ctx,
-		cancel: cancel,
+		jobRepository: jobRepository,
+		chromeDriver:  chromeDriver,
+		config:        config,
+		jobs:          jobs,
+		ctx:           ctx,
+		cancel:        cancel,
 	}
 
 	jp.startWorkers()
@@ -77,71 +79,67 @@ func (jp *JobProcessor) startWorkers() {
 }
 
 func (jp *JobProcessor) processJob(ctx context.Context, job *domain.Job) {
+	err := jp.jobRepository.UpdateJobToProcessing(ctx, job.ID)
+	if err != nil {
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("Failed to update job status to processing")
+		return
+	}
+
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
 		Msg("Started processing job")
 
-	url, err := url.ParseRequestURI(job.URL)
+	_, err = url.ParseRequestURI(job.URL)
 	if err != nil {
+		err = jp.jobRepository.UpdateJobToFailed(ctx, job.ID, "Invalid URL: "+err.Error())
+		if err != nil {
+			logger.Ctx(ctx).Error().
+				Str("url", job.URL).
+				Err(err).
+				Msg("Failed to update job status to failed")
+			return
+		}
+
 		logger.Ctx(ctx).Error().
 			Str("url", job.URL).
 			Err(err).
 			Msg("Failed to parse job URL")
 		return
 	}
-	chromeCtx, cancel := chromedp.NewContext(ctx)
-	defer cancel()
 
-	var buf []byte
-	if job.Format == domain.JobFormatPdf {
-		if err := chromedp.Run(chromeCtx, printToPDF(url.String(), &buf)); err != nil {
+	_, err = jp.chromeDriver.CaptureScreenshot(ctx, job)
+	if err != nil {
+		err = jp.jobRepository.UpdateJobToFailed(ctx, job.ID, err.Error())
+		if err != nil {
 			logger.Ctx(ctx).Error().
 				Str("url", job.URL).
 				Err(err).
-				Msg("Failed to capture PDF for job")
+				Msg("Failed to update job status to failed")
 			return
 		}
-		if err := os.WriteFile("page.pdf", buf, 0o644); err != nil {
-			logger.Ctx(ctx).Error().
-				Str("url", job.URL).
-				Err(err).
-				Msg("Failed to write PDF for job")
-		}
-	} else {
-		if err := chromedp.Run(chromeCtx, chromedp.Tasks{
-			chromedp.Navigate(url.String()),
-			chromedp.FullScreenshot(&buf, 100),
-		}); err != nil {
-			logger.Ctx(ctx).Error().
-				Str("url", job.URL).
-				Err(err).
-				Msg("Failed to capture screenshot for job")
-			return
-		}
-		if err := os.WriteFile("elementScreenshot.png", buf, 0o644); err != nil {
-			logger.Ctx(ctx).Error().
-				Str("url", job.URL).
-				Err(err).
-				Msg("Failed to write screenshot for job")
-		}
+
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("Failed to capture screenshot")
+		return
 	}
+
+	err = jp.jobRepository.UpdateJobToCompleted(ctx, job.ID)
+	if err != nil {
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("Failed to update job status to completed")
+		return
+	}
+
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
 		Msg("Finished processing job")
-}
-
-func printToPDF(urlstr string, res *[]byte) chromedp.Tasks {
-	return chromedp.Tasks{
-		chromedp.Navigate(urlstr),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			buf, _, err := page.PrintToPDF().WithPrintBackground(false).Do(ctx)
-			if err != nil {
-				return err
-			}
-			*res = buf
-			return nil
-		}),
-	}
 }
 
 func (jp *JobProcessor) Close() error {

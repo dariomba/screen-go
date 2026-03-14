@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/dariomba/screen-go/internal/adapters/chromedp"
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
 	"github.com/dariomba/screen-go/internal/adapters/openapi/middleware"
 	oapiv1 "github.com/dariomba/screen-go/internal/adapters/openapi/v1"
@@ -44,6 +45,7 @@ type services struct {
 	postgresJobRepository          *postgres.JobRepository
 	uuidGenerator                  ports.UUIDGenerator
 	jobProcessor                   ports.JobProcessor
+	chromeDriver                   ports.ChromeDriver
 	createJobUseCase               *usecase.CreateJob
 	createJobHandler               openapi.CreateJob
 	getJobStatusHandler            openapi.GetJobStatus
@@ -174,11 +176,25 @@ func (ctr *Container) UUIDGenerator() ports.UUIDGenerator {
 
 func (ctr *Container) JobProcessor() ports.JobProcessor {
 	if ctr.jobProcessor == nil {
-		ctr.jobProcessor = processor.NewJobProcessor(processor.JobProcessorConfig{
-			MaxThreads: ctr.MaxProcessingThreads,
-		})
+		ctr.jobProcessor = processor.NewJobProcessor(
+			ctr.ChromeDriver(),
+			ctr.PostgresJobRepository(),
+			processor.JobProcessorConfig{
+				MaxThreads: ctr.MaxProcessingThreads,
+			})
 	}
 	return ctr.jobProcessor
+}
+
+func (ctr *Container) ChromeDriver() ports.ChromeDriver {
+	if ctr.chromeDriver == nil {
+		driver, err := chromedp.NewChromedp()
+		if err != nil {
+			panic(err)
+		}
+		ctr.chromeDriver = driver
+	}
+	return ctr.chromeDriver
 }
 
 func (ctr *Container) PostgresJobRepository() *postgres.JobRepository {
