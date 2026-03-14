@@ -130,8 +130,6 @@ paths:
                     created_at: "2024-01-15T10:00:00Z"
                     started_at: null
                     finished_at: null
-                    duration_ms: null
-                    memory_used_mb: null
                     screenshot_url: null
                     error: null
                 processing:
@@ -147,8 +145,6 @@ paths:
                     created_at: "2024-01-15T10:00:00Z"
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: null
-                    duration_ms: null
-                    memory_used_mb: null
                     screenshot_url: null
                     error: null
                 done:
@@ -165,7 +161,6 @@ paths:
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: "2024-01-15T10:00:08Z"
                     duration_ms: 5120
-                    memory_used_mb: 287
                     screenshot_url: "/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"
                     error: null
                 failed:
@@ -182,7 +177,6 @@ paths:
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: "2024-01-15T10:00:33Z"
                     duration_ms: 30000
-                    memory_used_mb: null
                     screenshot_url: null
                     error: "context deadline exceeded: page did not load within 30s"
         '404':
@@ -352,10 +346,6 @@ components:
           example: [false]
         status:
           $ref: '#/components/schemas/JobStatus'
-        memory_used_mb:
-          type: integer
-          description: Actual memory used, recorded after the job completes. Null until done.
-          example: [287]
         started_at:
           type: string
           format: date-time
@@ -364,10 +354,6 @@ components:
           type: string
           format: date-time
           description: When the job finished (success or failure). Null while pending or processing.
-        duration_ms:
-          type: integer
-          description: Total processing time in milliseconds. Null until finished.
-          example: [5120]
         screenshot_url:
           type: string
           description: URL to fetch the screenshot file. Only present when status is `done`.
