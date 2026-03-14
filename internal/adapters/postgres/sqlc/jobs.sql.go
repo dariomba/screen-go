@@ -29,7 +29,7 @@ INSERT INTO jobs (
     COALESCE($6::boolean, false),
     'pending'
 )
-RETURNING id, url, format, width, height, full_page, status, memory_used_mb, started_at, finished_at, created_at, updated_at
+RETURNING id, url, format, width, height, full_page, status, error, started_at, finished_at, created_at, updated_at
 `
 
 type CreateJobParams struct {
@@ -59,11 +59,61 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 		&i.Height,
 		&i.FullPage,
 		&i.Status,
-		&i.MemoryUsedMb,
+		&i.Error,
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateJobToDone = `-- name: UpdateJobToDone :exec
+UPDATE jobs
+SET 
+    status = 'done',
+    finished_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+  AND status = 'processing'
+`
+
+func (q *Queries) UpdateJobToDone(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, updateJobToDone, id)
+	return err
+}
+
+const updateJobToFailed = `-- name: UpdateJobToFailed :exec
+UPDATE jobs
+SET 
+    status = 'failed',
+    finished_at = NOW(),
+    error = $2,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateJobToFailedParams struct {
+	ID    string
+	Error pgtype.Text
+}
+
+func (q *Queries) UpdateJobToFailed(ctx context.Context, arg UpdateJobToFailedParams) error {
+	_, err := q.db.Exec(ctx, updateJobToFailed, arg.ID, arg.Error)
+	return err
+}
+
+const updateJobToProcessing = `-- name: UpdateJobToProcessing :exec
+UPDATE jobs
+SET 
+    status = 'processing',
+    started_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+  AND status = 'pending'
+`
+
+func (q *Queries) UpdateJobToProcessing(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, updateJobToProcessing, id)
+	return err
 }

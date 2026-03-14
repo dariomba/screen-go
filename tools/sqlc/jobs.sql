@@ -17,3 +17,30 @@ INSERT INTO jobs (
     'pending'
 )
 RETURNING *;
+
+-- name: UpdateJobToProcessing :exec
+UPDATE jobs
+SET 
+    status = 'processing',
+    started_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+  AND status = 'pending';
+
+-- name: UpdateJobToDone :exec
+UPDATE jobs
+SET 
+    status = 'done',
+    finished_at = NOW(),
+    updated_at = NOW()
+WHERE id = $1
+  AND status = 'processing';
+
+-- name: UpdateJobToFailed :exec
+UPDATE jobs
+SET 
+    status = 'failed',
+    finished_at = NOW(),
+    error = $2,
+    updated_at = NOW()
+WHERE id = $1;

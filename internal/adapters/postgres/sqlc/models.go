@@ -98,16 +98,16 @@ func (ns NullJobStatus) Value() (driver.Value, error) {
 }
 
 type Job struct {
-	ID           string
-	Url          string
-	Format       JobFormat
-	Width        int32
-	Height       int32
-	FullPage     bool
-	Status       JobStatus
-	MemoryUsedMb pgtype.Int4
-	StartedAt    pgtype.Timestamptz
-	FinishedAt   pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID         string
+	Url        string
+	Format     JobFormat
+	Width      int32
+	Height     int32
+	FullPage   bool
+	Status     JobStatus
+	Error      pgtype.Text
+	StartedAt  pgtype.Timestamptz
+	FinishedAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
