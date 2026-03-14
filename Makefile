@@ -56,7 +56,7 @@ docker-db-logs:
 
 # ── Development ─────────────────────────────────────────────────────────────
 run: docker-db-start
-	go run main.go serve
+	go run main.go serve --log-level=debug --log-pretty=true
 
 test:
 	go test ./... -race -count=1 -timeout=60s

@@ -2,8 +2,9 @@ package openapi
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
+
+	"github.com/dariomba/screen-go/internal/logger"
 )
 
 type HTTPErrorResponse struct {
@@ -21,6 +22,9 @@ func WriteErrorJSON(w http.ResponseWriter, message string, statusCode int) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		// If JSON encoding fails, log it but don't try to write again
 		// (headers already sent)
-		log.Printf("Failed to encode error response: %v", err)
+		logger.Error().
+			Err(err).
+			Str("error_type", "json_encoding_error").
+			Msg("Failed to encode error response")
 	}
 }
