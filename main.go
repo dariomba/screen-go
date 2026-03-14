@@ -3,10 +3,9 @@
 package main
 
 import (
-	"log"
-
 	"github.com/dariomba/screen-go/cmd"
 	"github.com/dariomba/screen-go/internal/app"
+	"github.com/dariomba/screen-go/internal/logger"
 )
 
 func main() {
@@ -14,6 +13,6 @@ func main() {
 	rootCmd := cmd.NewRootCmd(ctr)
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Error executing command: %v", err)
+		logger.Fatal().Err(err).Msg("Application failed to start")
 	}
 }

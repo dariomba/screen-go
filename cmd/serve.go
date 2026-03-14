@@ -2,12 +2,12 @@ package cmd
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
 
 	"github.com/dariomba/screen-go/internal/app"
+	"github.com/dariomba/screen-go/internal/logger"
 	"github.com/spf13/cobra"
 )
 
@@ -36,18 +36,21 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 			defer stop()
 
 			go func() {
-				log.Printf("Starting server on %s:%s...\n", ctr.HttpHost, ctr.HttpPort)
+				logger.Info().
+					Str("host", ctr.HttpHost).
+					Str("port", ctr.HttpPort).
+					Msg("Server is starting")
 				if err := ctr.HTTPServer().ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					log.Fatalf("Server failed: %v", err)
+					logger.Fatal().Err(err).Msg("Failed to start server")
 				}
 			}()
 
 			<-ctx.Done()
-			log.Println("Shutting down server...")
+			logger.Info().Msg("Shutdown signal received, stopping server...")
 			if err := ctr.HTTPServer().Shutdown(context.Background()); err != nil {
-				log.Fatalf("Server shutdown failed: %v", err)
+				logger.Fatal().Err(err).Msg("Server shutdown failed")
 			}
-			log.Println("Server gracefully stopped")
+			logger.Info().Msg("Server gracefully stopped")
 		},
 	}
 

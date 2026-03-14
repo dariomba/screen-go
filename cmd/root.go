@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/dariomba/screen-go/internal/app"
+	"github.com/dariomba/screen-go/internal/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -19,6 +20,8 @@ const (
 
 type rootCmdFlags struct {
 	MaxProcessingThreads int
+	LogLevel             string
+	LogPretty            bool
 }
 
 func NewRootCmd(ctr *app.Container) *cobra.Command {
@@ -35,6 +38,11 @@ capacity becomes available, making it safe to deploy with predictable resource l
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			addRootContainerParams(ctr, &rootCmdFlags)
 
+			logger.Init(logger.Config{
+				Level:  ctr.LogLevel,
+				Pretty: ctr.LogPretty,
+			})
+
 			return initViper(cmd)
 		},
 	}
@@ -49,10 +57,14 @@ capacity becomes available, making it safe to deploy with predictable resource l
 
 func addRootCmdFlags(cmd *cobra.Command, flags *rootCmdFlags) {
 	cmd.PersistentFlags().IntVar(&flags.MaxProcessingThreads, "max-processing-threads", 10, "Maximum number of concurrent processing threads for screenshot jobs")
+	cmd.PersistentFlags().StringVar(&flags.LogLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	cmd.PersistentFlags().BoolVar(&flags.LogPretty, "log-pretty", false, "Enable pretty logging for development")
 }
 
 func addRootContainerParams(ctr *app.Container, flags *rootCmdFlags) {
 	ctr.MaxProcessingThreads = flags.MaxProcessingThreads
+	ctr.LogLevel = flags.LogLevel
+	ctr.LogPretty = flags.LogPretty
 }
 
 func initViper(cmd *cobra.Command) error {

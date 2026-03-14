@@ -38,8 +38,10 @@ func (uc *CreateJob) Execute(ctx context.Context, job *domain.Job) (*domain.Job,
 		return nil, err
 	}
 
+	processingCtx := context.WithoutCancel(ctx)
+
 	go func() {
-		uc.jobProcessor.Process(context.Background(), job)
+		uc.jobProcessor.Process(processingCtx, job)
 	}()
 
 	return job, nil

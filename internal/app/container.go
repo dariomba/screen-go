@@ -2,16 +2,17 @@ package app
 
 import (
 	"context"
-	"log"
 	"net/http"
 
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
+	"github.com/dariomba/screen-go/internal/adapters/openapi/middleware"
 	oapiv1 "github.com/dariomba/screen-go/internal/adapters/openapi/v1"
 	"github.com/dariomba/screen-go/internal/adapters/postgres"
 	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
 	"github.com/dariomba/screen-go/internal/adapters/processor"
 	"github.com/dariomba/screen-go/internal/adapters/uuid"
 	"github.com/dariomba/screen-go/internal/application/usecase"
+	"github.com/dariomba/screen-go/internal/logger"
 	"github.com/dariomba/screen-go/internal/ports"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
@@ -26,6 +27,9 @@ type params struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	LogLevel  string
+	LogPretty bool
 
 	StatusPollingEndpoint string
 	MaxProcessingThreads  int
@@ -55,15 +59,23 @@ func NewContainer() *Container {
 	return &Container{
 		params: params{
 			StatusPollingEndpoint: "/v1/job/",
+			LogLevel:              "info",
+			LogPretty:             false,
 		},
 	}
 }
 
 func (ctr *Container) HTTPServer() *http.Server {
 	if ctr.httpServer == nil {
+		handler := middleware.Recovery(
+			middleware.RequestLogger(
+				ctr.OAPIHandler(),
+			),
+		)
+
 		ctr.httpServer = &http.Server{
 			Addr:    ctr.HttpHost + ":" + ctr.HttpPort,
-			Handler: ctr.OAPIHandler(),
+			Handler: handler,
 		}
 	}
 	return ctr.httpServer
@@ -85,12 +97,18 @@ func (ctr *Container) OAPIHandler() http.Handler {
 				nil, // Strict middlewares
 				openapi.StrictHTTPServerOptions{
 					RequestErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-						log.Printf("Request error: %v", err)
+						logger.Ctx(r.Context()).Error().
+							Err(err).
+							Str("error_type", "request_error").
+							Msg("Request validation failed")
 
 						openapi.WriteErrorJSON(w, "invalid request", http.StatusBadRequest)
 					},
 					ResponseErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-						log.Printf("Response error: %v", err)
+						logger.Ctx(r.Context()).Error().
+							Err(err).
+							Str("error_type", "response_error").
+							Msg("Response generation failed")
 
 						openapi.WriteErrorJSON(w, "internal server error", http.StatusInternalServerError)
 					},
@@ -115,7 +133,11 @@ func (ctr *Container) OAPIRequestValidatorMiddleware() openapi.MiddlewareFunc {
 
 		ctr.oapiRequestValidatorMiddleware = nethttpmiddleware.OapiRequestValidatorWithOptions(openApiSwagger, &nethttpmiddleware.Options{
 			ErrorHandler: func(w http.ResponseWriter, message string, statusCode int) {
-				log.Printf("Request validation error: %s", message)
+				logger.Error().
+					Str("error_type", "validation_error").
+					Int("status", statusCode).
+					Str("error_message", message).
+					Msg("OpenAPI validation failed")
 
 				openapi.WriteErrorJSON(w, message, http.StatusBadRequest)
 			},
