@@ -39,18 +39,11 @@ type Job struct {
 	Height     int
 	FullPage   bool
 	Status     JobStatus
-	StartedAt  time.Time
-	FinishedAt time.Time
+	Error      *string
+	StartedAt  *time.Time
+	FinishedAt *time.Time
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
-}
-
-type JobInvalidError struct {
-	Message string
-}
-
-func (e *JobInvalidError) Error() string {
-	return e.Message
 }
 
 func NewJob(url string, format *string, width, height *int, fullPage *bool) *Job {

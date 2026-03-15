@@ -1,6 +1,8 @@
 package postgres
 
 import (
+	"time"
+
 	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
 	"github.com/dariomba/screen-go/internal/domain"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -25,4 +27,18 @@ func toPgNullJobFormat(f domain.JobFormat) sqlc.NullJobFormat {
 		JobFormat: sqlc.JobFormat(f),
 		Valid:     true,
 	}
+}
+
+func fromPgNullText(s pgtype.Text) *string {
+	if s.Valid {
+		return &s.String
+	}
+	return nil
+}
+
+func fromPgNullTime(t pgtype.Timestamptz) *time.Time {
+	if t.Valid {
+		return &t.Time
+	}
+	return nil
 }

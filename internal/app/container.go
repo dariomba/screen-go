@@ -48,6 +48,7 @@ type services struct {
 	chromeDriver                   ports.ChromeDriver
 	createJobUseCase               *usecase.CreateJob
 	createJobHandler               openapi.CreateJob
+	getJobStatusUseCase            *usecase.GetJobStatus
 	getJobStatusHandler            openapi.GetJobStatus
 	getScreenshotHandler           openapi.GetScreenshot
 }
@@ -218,6 +219,15 @@ func (ctr *Container) CreateJobUseCase() *usecase.CreateJob {
 	return ctr.createJobUseCase
 }
 
+func (ctr *Container) GetJobStatusUseCase() *usecase.GetJobStatus {
+	if ctr.getJobStatusUseCase == nil {
+		ctr.getJobStatusUseCase = usecase.NewGetJobStatus(
+			ctr.PostgresJobRepository(),
+		)
+	}
+	return ctr.getJobStatusUseCase
+}
+
 func (ctr *Container) CreateJobHandler() openapi.CreateJob {
 	if ctr.createJobHandler == nil {
 		ctr.createJobHandler = oapiv1.NewCreateJobHandler(
@@ -231,7 +241,9 @@ func (ctr *Container) CreateJobHandler() openapi.CreateJob {
 
 func (ctr *Container) GetJobStatusHandler() openapi.GetJobStatus {
 	if ctr.getJobStatusHandler == nil {
-		ctr.getJobStatusHandler = oapiv1.NewGetJobStatusHandler()
+		ctr.getJobStatusHandler = oapiv1.NewGetJobStatusHandler(ctr.GetJobStatusUseCase(), oapiv1.GetJobStatusHandlerConfig{
+			ScreenshotEndpoint: "/v1/screenshot/",
+		})
 	}
 	return ctr.getJobStatusHandler
 }
