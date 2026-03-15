@@ -160,7 +160,6 @@ paths:
                     created_at: "2024-01-15T10:00:00Z"
                     started_at: "2024-01-15T10:00:03Z"
                     finished_at: "2024-01-15T10:00:08Z"
-                    duration_ms: 5120
                     screenshot_url: "/screenshot/01J4KZQX8G3N2P7M5R9T0VWYE6"
                     error: null
                 failed:
@@ -346,6 +345,10 @@ components:
           example: [false]
         status:
           $ref: '#/components/schemas/JobStatus'
+        created_at:
+          type: string
+          format: date-time
+          description: When the job was created.
         started_at:
           type: string
           format: date-time
