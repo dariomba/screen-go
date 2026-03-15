@@ -68,6 +68,31 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (Job, erro
 	return i, err
 }
 
+const getJobByID = `-- name: GetJobByID :one
+SELECT id, url, format, width, height, full_page, status, error, started_at, finished_at, created_at, updated_at FROM jobs
+WHERE id = $1
+`
+
+func (q *Queries) GetJobByID(ctx context.Context, id string) (Job, error) {
+	row := q.db.QueryRow(ctx, getJobByID, id)
+	var i Job
+	err := row.Scan(
+		&i.ID,
+		&i.Url,
+		&i.Format,
+		&i.Width,
+		&i.Height,
+		&i.FullPage,
+		&i.Status,
+		&i.Error,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateJobToDone = `-- name: UpdateJobToDone :exec
 UPDATE jobs
 SET 

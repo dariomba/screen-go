@@ -7,6 +7,7 @@ import (
 )
 
 type JobRepository interface {
+	GetJobByID(ctx context.Context, jobID string) (*domain.Job, error)
 	CreateJob(ctx context.Context, job *domain.Job) (*domain.Job, error)
 	UpdateJobToProcessing(ctx context.Context, jobID string) error
 	UpdateJobToCompleted(ctx context.Context, jobID string) error

@@ -44,3 +44,7 @@ SET
     error = $2,
     updated_at = NOW()
 WHERE id = $1;
+
+-- name: GetJobByID :one
+SELECT * FROM jobs
+WHERE id = $1;

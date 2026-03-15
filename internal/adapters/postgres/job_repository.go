@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
 	"github.com/dariomba/screen-go/internal/domain"
@@ -15,6 +17,32 @@ func NewJobRepository(queries *sqlc.Queries) *JobRepository {
 	return &JobRepository{
 		queries: queries,
 	}
+}
+
+func (r *JobRepository) GetJobByID(ctx context.Context, jobID string) (*domain.Job, error) {
+	job, err := r.queries.GetJobByID(ctx, jobID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrJobNotFound
+		}
+
+		return nil, err
+	}
+
+	return &domain.Job{
+		ID:         job.ID,
+		URL:        job.Url,
+		Format:     domain.JobFormat(job.Format),
+		Width:      int(job.Width),
+		Height:     int(job.Height),
+		FullPage:   job.FullPage,
+		Status:     domain.JobStatus(job.Status),
+		Error:      fromPgNullText(job.Error),
+		StartedAt:  fromPgNullTime(job.StartedAt),
+		FinishedAt: fromPgNullTime(job.FinishedAt),
+		CreatedAt:  job.CreatedAt.Time,
+		UpdatedAt:  job.UpdatedAt.Time,
+	}, nil
 }
 
 func (r *JobRepository) CreateJob(ctx context.Context, job *domain.Job) (*domain.Job, error) {
