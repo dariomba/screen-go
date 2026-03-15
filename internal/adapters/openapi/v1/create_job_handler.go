@@ -41,7 +41,7 @@ func (uc *CreateJobHandler) Execute(ctx context.Context, request openapi.CreateJ
 	))
 	if err != nil {
 		if je, ok := errors.AsType[*domain.JobInvalidError](err); ok {
-			return openapi.CreateJob400JSONResponse{}, je
+			return openapi.CreateJob422JSONResponse{}, je
 		}
 
 		return openapi.CreateJob500JSONResponse{}, err
