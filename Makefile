@@ -34,6 +34,9 @@ migrate: build-migrate
 migrate-down: build-migrate
 	$(MIGRATE_BIN) -path tools/migrate -database "$(DATABASE_URL)" down 1
 
+migrate-drop: build-migrate
+	$(MIGRATE_BIN) -path tools/migrate -database "$(DATABASE_URL)" drop
+
 # ── Docker DB ───────────────────────────────────────────────────────────────
 docker-db-start:
 	@docker volume create $(DB_VOLUME) 2>/dev/null || true

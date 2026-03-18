@@ -2,6 +2,8 @@ package processor
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/dariomba/screen-go/internal/domain"
@@ -19,9 +21,11 @@ type jobWithContext struct {
 }
 
 type JobProcessor struct {
-	jobRepository ports.JobRepository
-	chromeDriver  ports.ChromeDriver
-	config        JobProcessorConfig
+	jobRepository        ports.JobRepository
+	screenshotRepository ports.ScreenshotRepository
+	chromeDriver         ports.ChromeDriver
+	uuidGenerator        ports.UUIDGenerator
+	config               JobProcessorConfig
 
 	jobs chan *jobWithContext
 
@@ -29,18 +33,26 @@ type JobProcessor struct {
 	cancel context.CancelFunc
 }
 
-func NewJobProcessor(chromeDriver ports.ChromeDriver, jobRepository ports.JobRepository, config JobProcessorConfig) *JobProcessor {
+func NewJobProcessor(
+	chromeDriver ports.ChromeDriver,
+	jobRepository ports.JobRepository,
+	screenshotRepository ports.ScreenshotRepository,
+	uuidGenerator ports.UUIDGenerator,
+	config JobProcessorConfig,
+) *JobProcessor {
 	jobs := make(chan *jobWithContext, config.MaxThreads)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jp := &JobProcessor{
-		jobRepository: jobRepository,
-		chromeDriver:  chromeDriver,
-		config:        config,
-		jobs:          jobs,
-		ctx:           ctx,
-		cancel:        cancel,
+		jobRepository:        jobRepository,
+		screenshotRepository: screenshotRepository,
+		uuidGenerator:        uuidGenerator,
+		chromeDriver:         chromeDriver,
+		config:               config,
+		jobs:                 jobs,
+		ctx:                  ctx,
+		cancel:               cancel,
 	}
 
 	jp.startWorkers()
@@ -53,7 +65,7 @@ func (jp *JobProcessor) Process(ctx context.Context, job *domain.Job) {
 	ctx = logger.WithJobID(ctx, job.ID)
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
-		Msg("Received new job for processing")
+		Msg("received new job for processing")
 	jp.jobs <- &jobWithContext{
 		job: job,
 		ctx: ctx,
@@ -79,67 +91,94 @@ func (jp *JobProcessor) startWorkers() {
 }
 
 func (jp *JobProcessor) processJob(ctx context.Context, job *domain.Job) {
+	var jobErr error
+	defer func() {
+		if jobErr != nil {
+			_ = jp.markJobAsFailed(ctx, job, jobErr.Error())
+		}
+	}()
+
 	err := jp.jobRepository.UpdateJobToProcessing(ctx, job.ID)
 	if err != nil {
+		jobErr = errors.New("failed to update job status to processing")
+
 		logger.Ctx(ctx).Error().
 			Str("url", job.URL).
 			Err(err).
-			Msg("Failed to update job status to processing")
+			Msg("failed to update job status to processing")
 		return
 	}
 
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
-		Msg("Started processing job")
+		Msg("started processing job")
 
 	_, err = url.ParseRequestURI(job.URL)
 	if err != nil {
-		err = jp.jobRepository.UpdateJobToFailed(ctx, job.ID, "Invalid URL: "+err.Error())
-		if err != nil {
-			logger.Ctx(ctx).Error().
-				Str("url", job.URL).
-				Err(err).
-				Msg("Failed to update job status to failed")
-			return
-		}
+		jobErr = fmt.Errorf("invalid URL: %v", err)
 
 		logger.Ctx(ctx).Error().
 			Str("url", job.URL).
 			Err(err).
-			Msg("Failed to parse job URL")
+			Msg("failed to parse job URL")
 		return
 	}
 
-	_, err = jp.chromeDriver.CaptureScreenshot(ctx, job)
+	imgRes, err := jp.chromeDriver.CaptureScreenshot(ctx, job)
 	if err != nil {
-		err = jp.jobRepository.UpdateJobToFailed(ctx, job.ID, err.Error())
-		if err != nil {
-			logger.Ctx(ctx).Error().
-				Str("url", job.URL).
-				Err(err).
-				Msg("Failed to update job status to failed")
-			return
-		}
+		jobErr = fmt.Errorf("failed to capture screenshot: %v", err)
 
 		logger.Ctx(ctx).Error().
 			Str("url", job.URL).
 			Err(err).
-			Msg("Failed to capture screenshot")
+			Msg("failed to capture screenshot")
 		return
 	}
 
+	_, err = jp.screenshotRepository.CreateScreenshot(ctx, &domain.Screenshot{
+		ID:          jp.uuidGenerator.Generate(),
+		JobID:       job.ID,
+		StorageKey:  "screenshot/" + job.ID + "." + string(job.Format), // This would be returned by the storage service
+		ContentType: "image/png",                                       // This would be determined by the storage service
+		Size:        int64(len(imgRes)),
+	})
+	if err != nil {
+		jobErr = errors.New("failed to save screenshot information to repository")
+
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("failed to save screenshot information to repository")
+		return
+	}
+
+	jobErr = nil
 	err = jp.jobRepository.UpdateJobToCompleted(ctx, job.ID)
 	if err != nil {
+		jobErr = errors.New("failed to update job status to completed")
+
 		logger.Ctx(ctx).Error().
 			Str("url", job.URL).
 			Err(err).
-			Msg("Failed to update job status to completed")
+			Msg("failed to update job status to completed")
 		return
 	}
 
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
-		Msg("Finished processing job")
+		Msg("finished processing job")
+}
+
+func (jp *JobProcessor) markJobAsFailed(ctx context.Context, job *domain.Job, errorMsg string) error {
+	err := jp.jobRepository.UpdateJobToFailed(ctx, job.ID, errorMsg)
+	if err != nil {
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("failed to update job status to failed")
+		return err
+	}
+	return nil
 }
 
 func (jp *JobProcessor) Close() error {

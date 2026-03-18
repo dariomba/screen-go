@@ -43,6 +43,7 @@ type services struct {
 	database                       *pgxpool.Pool
 	query                          *sqlc.Queries
 	postgresJobRepository          *postgres.JobRepository
+	postgresScreenshotRepository   *postgres.ScreenshotRepository
 	uuidGenerator                  ports.UUIDGenerator
 	jobProcessor                   ports.JobProcessor
 	chromeDriver                   ports.ChromeDriver
@@ -180,6 +181,8 @@ func (ctr *Container) JobProcessor() ports.JobProcessor {
 		ctr.jobProcessor = processor.NewJobProcessor(
 			ctr.ChromeDriver(),
 			ctr.PostgresJobRepository(),
+			ctr.PostgresScreenshotRepository(),
+			ctr.UUIDGenerator(),
 			processor.JobProcessorConfig{
 				MaxThreads: ctr.MaxProcessingThreads,
 			})
@@ -203,6 +206,13 @@ func (ctr *Container) PostgresJobRepository() *postgres.JobRepository {
 		ctr.postgresJobRepository = postgres.NewJobRepository(ctr.Query())
 	}
 	return ctr.postgresJobRepository
+}
+
+func (ctr *Container) PostgresScreenshotRepository() *postgres.ScreenshotRepository {
+	if ctr.postgresScreenshotRepository == nil {
+		ctr.postgresScreenshotRepository = postgres.NewScreenshotRepository(ctr.Query())
+	}
+	return ctr.postgresScreenshotRepository
 }
 
 func (ctr *Container) CreateJobUseCase() *usecase.CreateJob {
