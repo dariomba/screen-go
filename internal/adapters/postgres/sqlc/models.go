@@ -111,3 +111,12 @@ type Job struct {
 	CreatedAt  pgtype.Timestamptz
 	UpdatedAt  pgtype.Timestamptz
 }
+
+type Screenshot struct {
+	ID          string
+	JobID       string
+	StorageKey  string
+	ContentType string
+	SizeBytes   int64
+	CreatedAt   pgtype.Timestamptz
+}
