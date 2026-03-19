@@ -11,6 +11,7 @@ import (
 	"github.com/dariomba/screen-go/internal/adapters/postgres"
 	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
 	"github.com/dariomba/screen-go/internal/adapters/processor"
+	"github.com/dariomba/screen-go/internal/adapters/storage"
 	"github.com/dariomba/screen-go/internal/adapters/uuid"
 	"github.com/dariomba/screen-go/internal/application/usecase"
 	"github.com/dariomba/screen-go/internal/logger"
@@ -47,6 +48,7 @@ type services struct {
 	uuidGenerator                  ports.UUIDGenerator
 	jobProcessor                   ports.JobProcessor
 	chromeDriver                   ports.ChromeDriver
+	localStorage                   ports.ScreenshotStorage
 	createJobUseCase               *usecase.CreateJob
 	createJobHandler               openapi.CreateJob
 	getJobStatusUseCase            *usecase.GetJobStatus
@@ -182,6 +184,7 @@ func (ctr *Container) JobProcessor() ports.JobProcessor {
 			ctr.ChromeDriver(),
 			ctr.PostgresJobRepository(),
 			ctr.PostgresScreenshotRepository(),
+			ctr.LocalStorage(),
 			ctr.UUIDGenerator(),
 			processor.JobProcessorConfig{
 				MaxThreads: ctr.MaxProcessingThreads,
@@ -213,6 +216,13 @@ func (ctr *Container) PostgresScreenshotRepository() *postgres.ScreenshotReposit
 		ctr.postgresScreenshotRepository = postgres.NewScreenshotRepository(ctr.Query())
 	}
 	return ctr.postgresScreenshotRepository
+}
+
+func (ctr *Container) LocalStorage() ports.ScreenshotStorage {
+	if ctr.localStorage == nil {
+		ctr.localStorage = storage.NewLocalStorage("/tmp/screen-go")
+	}
+	return ctr.localStorage
 }
 
 func (ctr *Container) CreateJobUseCase() *usecase.CreateJob {
