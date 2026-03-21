@@ -17,5 +17,6 @@ type SaveScreenshotResult struct {
 }
 
 type ScreenshotStorage interface {
+	Get(ctx context.Context, key string) (io.Reader, error)
 	Save(ctx context.Context, input *SaveScreenshotInput) (*SaveScreenshotResult, error)
 }

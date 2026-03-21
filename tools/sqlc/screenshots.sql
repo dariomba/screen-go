@@ -13,3 +13,7 @@ INSERT INTO screenshots (
     $5
 )
 RETURNING *;
+
+-- name: GetScreenshotByJobID :one
+SELECT * FROM screenshots
+WHERE job_id = $1;
