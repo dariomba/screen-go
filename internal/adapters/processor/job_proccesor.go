@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ type jobWithContext struct {
 type JobProcessor struct {
 	jobRepository        ports.JobRepository
 	screenshotRepository ports.ScreenshotRepository
+	screenshotStorage    ports.ScreenshotStorage
 	chromeDriver         ports.ChromeDriver
 	uuidGenerator        ports.UUIDGenerator
 	config               JobProcessorConfig
@@ -37,6 +39,7 @@ func NewJobProcessor(
 	chromeDriver ports.ChromeDriver,
 	jobRepository ports.JobRepository,
 	screenshotRepository ports.ScreenshotRepository,
+	screenshotStorage ports.ScreenshotStorage,
 	uuidGenerator ports.UUIDGenerator,
 	config JobProcessorConfig,
 ) *JobProcessor {
@@ -47,6 +50,7 @@ func NewJobProcessor(
 	jp := &JobProcessor{
 		jobRepository:        jobRepository,
 		screenshotRepository: screenshotRepository,
+		screenshotStorage:    screenshotStorage,
 		uuidGenerator:        uuidGenerator,
 		chromeDriver:         chromeDriver,
 		config:               config,
@@ -135,12 +139,29 @@ func (jp *JobProcessor) processJob(ctx context.Context, job *domain.Job) {
 		return
 	}
 
+	storageKey := fmt.Sprintf("screenshot/%s.%s", job.ID, job.Format)
+	contentType := contentTypeFromFormat(job.Format)
+	saveStorageRes, err := jp.screenshotStorage.Save(ctx, &ports.SaveScreenshotInput{
+		Key:         storageKey,
+		Body:        bytes.NewReader(imgRes),
+		ContentType: contentType,
+	})
+	if err != nil {
+		jobErr = errors.New("failed to save screenshot to storage")
+
+		logger.Ctx(ctx).Error().
+			Str("url", job.URL).
+			Err(err).
+			Msg("failed to save screenshot to storage")
+		return
+	}
+
 	_, err = jp.screenshotRepository.CreateScreenshot(ctx, &domain.Screenshot{
 		ID:          jp.uuidGenerator.Generate(),
 		JobID:       job.ID,
-		StorageKey:  "screenshot/" + job.ID + "." + string(job.Format), // This would be returned by the storage service
-		ContentType: "image/png",                                       // This would be determined by the storage service
-		Size:        int64(len(imgRes)),
+		StorageKey:  saveStorageRes.Key,
+		ContentType: contentType,
+		Size:        saveStorageRes.Size,
 	})
 	if err != nil {
 		jobErr = errors.New("failed to save screenshot information to repository")
@@ -179,6 +200,17 @@ func (jp *JobProcessor) markJobAsFailed(ctx context.Context, job *domain.Job, er
 		return err
 	}
 	return nil
+}
+
+func contentTypeFromFormat(format domain.JobFormat) string {
+	switch format {
+	case domain.JobFormatPdf:
+		return "application/pdf"
+	case domain.JobFormatPng:
+		return "image/png"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func (jp *JobProcessor) Close() error {

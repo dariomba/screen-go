@@ -1,0 +1,51 @@
+package storage
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/dariomba/screen-go/internal/logger"
+	"github.com/dariomba/screen-go/internal/ports"
+)
+
+type LocalStorage struct {
+	basePath string
+}
+
+func NewLocalStorage(basePath string) *LocalStorage {
+	return &LocalStorage{basePath: basePath}
+}
+
+func (s *LocalStorage) Save(ctx context.Context, input *ports.SaveScreenshotInput) (*ports.SaveScreenshotResult, error) {
+	fullPath := filepath.Join(s.basePath, input.Key)
+
+	logger.Ctx(ctx).Debug().
+		Str("path", fullPath).
+		Msg("Writing to local filesystem")
+
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	file, err := os.Create(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file: %w", err)
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, input.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write file: %w", err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file stats: %w", err)
+	}
+
+	return &ports.SaveScreenshotResult{Key: input.Key, Size: stat.Size()}, nil
+}
