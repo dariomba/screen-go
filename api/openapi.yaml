@@ -216,11 +216,6 @@ paths:
               schema:
                 type: string
                 enum: [image/png, application/pdf]
-            Content-Disposition:
-              description: Suggested filename for download
-              schema:
-                type: string
-              example: 'attachment; filename="snapshot-01J4KZQX8G3N2P7M5R9T0VWYE6.png"'
             Content-Length:
               description: File size in bytes
               schema:

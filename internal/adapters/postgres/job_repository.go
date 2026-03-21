@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/dariomba/screen-go/internal/adapters/postgres/sqlc"
 	"github.com/dariomba/screen-go/internal/domain"
@@ -26,7 +27,7 @@ func (r *JobRepository) GetJobByID(ctx context.Context, jobID string) (*domain.J
 			return nil, domain.ErrJobNotFound
 		}
 
-		return nil, err
+		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
 
 	return &domain.Job{
@@ -55,7 +56,7 @@ func (r *JobRepository) CreateJob(ctx context.Context, job *domain.Job) (*domain
 		FullPage: toPgBool(job.FullPage),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create job: %w", err)
 	}
 
 	return &domain.Job{
