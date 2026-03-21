@@ -8,4 +8,5 @@ import (
 
 type ScreenshotRepository interface {
 	CreateScreenshot(ctx context.Context, screenshot *domain.Screenshot) (*domain.Screenshot, error)
+	GetScreenshotByJobID(ctx context.Context, jobID string) (*domain.Screenshot, error)
 }

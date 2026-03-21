@@ -53,6 +53,7 @@ type services struct {
 	createJobHandler               openapi.CreateJob
 	getJobStatusUseCase            *usecase.GetJobStatus
 	getJobStatusHandler            openapi.GetJobStatus
+	getScreenshotUseCase           *usecase.GetScreenshot
 	getScreenshotHandler           openapi.GetScreenshot
 }
 
@@ -248,6 +249,16 @@ func (ctr *Container) GetJobStatusUseCase() *usecase.GetJobStatus {
 	return ctr.getJobStatusUseCase
 }
 
+func (ctr *Container) GetScreenshotUseCase() *usecase.GetScreenshot {
+	if ctr.getScreenshotUseCase == nil {
+		ctr.getScreenshotUseCase = usecase.NewGetScreenshot(
+			ctr.PostgresScreenshotRepository(),
+			ctr.LocalStorage(),
+		)
+	}
+	return ctr.getScreenshotUseCase
+}
+
 func (ctr *Container) CreateJobHandler() openapi.CreateJob {
 	if ctr.createJobHandler == nil {
 		ctr.createJobHandler = oapiv1.NewCreateJobHandler(
@@ -269,7 +280,7 @@ func (ctr *Container) GetJobStatusHandler() openapi.GetJobStatus {
 }
 func (ctr *Container) GetScreenshotHandler() openapi.GetScreenshot {
 	if ctr.getScreenshotHandler == nil {
-		ctr.getScreenshotHandler = oapiv1.NewGetScreenshotHandler()
+		ctr.getScreenshotHandler = oapiv1.NewGetScreenshotHandler(ctr.GetScreenshotUseCase())
 	}
 	return ctr.getScreenshotHandler
 }

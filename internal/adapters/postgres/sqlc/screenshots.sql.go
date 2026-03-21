@@ -53,3 +53,22 @@ func (q *Queries) CreateScreenshot(ctx context.Context, arg CreateScreenshotPara
 	)
 	return i, err
 }
+
+const getScreenshotByJobID = `-- name: GetScreenshotByJobID :one
+SELECT id, job_id, storage_key, content_type, size_bytes, created_at FROM screenshots
+WHERE job_id = $1
+`
+
+func (q *Queries) GetScreenshotByJobID(ctx context.Context, jobID string) (Screenshot, error) {
+	row := q.db.QueryRow(ctx, getScreenshotByJobID, jobID)
+	var i Screenshot
+	err := row.Scan(
+		&i.ID,
+		&i.JobID,
+		&i.StorageKey,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+	)
+	return i, err
+}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dariomba/screen-go/internal/domain"
 	"github.com/dariomba/screen-go/internal/logger"
 	"github.com/dariomba/screen-go/internal/ports"
 )
@@ -17,6 +18,22 @@ type LocalStorage struct {
 
 func NewLocalStorage(basePath string) *LocalStorage {
 	return &LocalStorage{basePath: basePath}
+}
+
+func (s *LocalStorage) Get(ctx context.Context, key string) (io.Reader, error) {
+	fullPath := filepath.Join(s.basePath, key)
+
+	file, err := os.Open(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Ctx(ctx).Debug().Msg("File not found")
+
+			return nil, domain.ErrScreenshotNotFound
+		}
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	return file, nil
 }
 
 func (s *LocalStorage) Save(ctx context.Context, input *ports.SaveScreenshotInput) (*ports.SaveScreenshotResult, error) {
