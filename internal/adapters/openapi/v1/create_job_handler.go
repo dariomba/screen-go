@@ -7,6 +7,7 @@ import (
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
 	"github.com/dariomba/screen-go/internal/application/usecase"
 	"github.com/dariomba/screen-go/internal/domain"
+	"github.com/dariomba/screen-go/internal/logger"
 )
 
 type CreateJobConfig struct {
@@ -40,8 +41,14 @@ func (uc *CreateJobHandler) Execute(ctx context.Context, request openapi.CreateJ
 		request.Body.FullPage,
 	))
 	if err != nil {
+		logger.Ctx(ctx).Error().
+			Err(err).
+			Msg("failed creating the job")
+
 		if je, ok := errors.AsType[*domain.JobInvalidError](err); ok {
-			return openapi.CreateJob422JSONResponse{}, je
+			return openapi.CreateJob422JSONResponse{
+				Error: je.Error(),
+			}, nil
 		}
 
 		return openapi.CreateJob500JSONResponse{}, err
