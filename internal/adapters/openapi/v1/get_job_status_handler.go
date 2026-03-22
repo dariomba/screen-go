@@ -7,6 +7,7 @@ import (
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
 	"github.com/dariomba/screen-go/internal/application/usecase"
 	"github.com/dariomba/screen-go/internal/domain"
+	"github.com/dariomba/screen-go/internal/logger"
 )
 
 type GetJobStatusHandlerConfig struct {
@@ -29,6 +30,10 @@ func NewGetJobStatusHandler(getJobStatusUseCase *usecase.GetJobStatus, config Ge
 func (uc *GetJobStatusHandler) Execute(ctx context.Context, request openapi.GetJobStatusRequestObject) (openapi.GetJobStatusResponseObject, error) {
 	job, err := uc.getJobStatusUseCase.Execute(ctx, request.ID)
 	if err != nil {
+		logger.Ctx(ctx).Error().
+			Err(err).
+			Msg("failed getting the job status")
+
 		if errors.Is(err, domain.ErrJobNotFound) {
 			return openapi.GetJobStatus404JSONResponse{
 				Error: "job not found",

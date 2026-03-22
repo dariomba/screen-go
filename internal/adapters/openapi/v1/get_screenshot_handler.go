@@ -7,6 +7,7 @@ import (
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
 	"github.com/dariomba/screen-go/internal/application/usecase"
 	"github.com/dariomba/screen-go/internal/domain"
+	"github.com/dariomba/screen-go/internal/logger"
 )
 
 type GetScreenshotHandler struct {
@@ -22,6 +23,10 @@ func NewGetScreenshotHandler(getScreenshotUseCase *usecase.GetScreenshot) *GetSc
 func (uc *GetScreenshotHandler) Execute(ctx context.Context, request openapi.GetScreenshotRequestObject) (openapi.GetScreenshotResponseObject, error) {
 	result, err := uc.getScreenshotUseCase.Execute(ctx, request.ID)
 	if err != nil {
+		logger.Ctx(ctx).Error().
+			Err(err).
+			Msg("failed getting the screenshot")
+
 		if errors.Is(err, domain.ErrScreenshotNotFound) {
 			return openapi.GetScreenshot404JSONResponse{
 				Error: "screenshot not found",
