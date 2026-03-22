@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/dariomba/screen-go/internal/adapters/chromedp"
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
@@ -35,6 +36,10 @@ type params struct {
 
 	StatusPollingEndpoint string
 	MaxProcessingThreads  int
+
+	ChromeTimeout time.Duration
+	ChromeWindowX int
+	ChromeWindowY int
 }
 
 type services struct {
@@ -196,7 +201,11 @@ func (ctr *Container) JobProcessor() ports.JobProcessor {
 
 func (ctr *Container) ChromeDriver() ports.ChromeDriver {
 	if ctr.chromeDriver == nil {
-		driver, err := chromedp.NewChromedp()
+		driver, err := chromedp.NewChromedp(&chromedp.ChromedpConfig{
+			Timeout: ctr.ChromeTimeout,
+			WindowX: ctr.ChromeWindowX,
+			WindowY: ctr.ChromeWindowY,
+		})
 		if err != nil {
 			panic(err)
 		}

@@ -5,18 +5,27 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/dariomba/screen-go/internal/domain"
 )
+
+type ChromedpConfig struct {
+	Timeout time.Duration
+	WindowX int
+	WindowY int
+}
 
 type Chromedp struct {
 	allocatorCtx    context.Context
 	allocatorCancel context.CancelFunc
 	browserCtx      context.Context
 	browserCancel   context.CancelFunc
+
+	config *ChromedpConfig
 }
 
-func NewChromedp() (*Chromedp, error) {
+func NewChromedp(config *ChromedpConfig) (*Chromedp, error) {
 	allocOpts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Headless,
 		chromedp.NoDefaultBrowserCheck,
@@ -31,6 +40,7 @@ func NewChromedp() (*Chromedp, error) {
 		chromedp.Flag("https-upgrades-enabled", false),
 		chromedp.Flag("disable-features", "HttpsUpgrades"),
 		chromedp.Flag("no-sandbox", true),
+		chromedp.WindowSize(config.WindowX, config.WindowY),
 	)
 
 	// Create a temporary allocator context to warm up Chrome
@@ -50,34 +60,62 @@ func NewChromedp() (*Chromedp, error) {
 		allocatorCancel: allocatorCancel,
 		browserCtx:      browserCtx,
 		browserCancel:   browserCancel,
+		config:          config,
 	}
 
 	return driver, nil
 }
 
 func (d *Chromedp) CaptureScreenshot(ctx context.Context, job *domain.Job) ([]byte, error) {
-	// TODO: Move this default timeout to config
-	timeout := 30 * time.Second
-
 	tabCtx, tabCancel := chromedp.NewContext(d.browserCtx)
 	defer tabCancel()
-	tabCtx, timeoutCancel := context.WithTimeout(tabCtx, timeout)
+	tabCtx, timeoutCancel := context.WithTimeout(tabCtx, d.config.Timeout)
 	defer timeoutCancel()
 
-	var buf []byte
-	err := chromedp.Run(tabCtx, snapshot(job.URL, &buf))
+	var imgBuf []byte
+
+	tasks := append(chromedp.Tasks{},
+		chromedp.Navigate(job.URL),
+		chromedp.WaitReady("body", chromedp.ByQuery),
+	)
+	if job.Format == domain.JobFormatPdf {
+		tasks = append(tasks, chromedp.ActionFunc(func(ctx context.Context) error {
+			buf, _, err := page.PrintToPDF().WithPrintBackground(false).Do(ctx)
+			if err != nil {
+				return err
+			}
+			imgBuf = buf
+			return nil
+		}))
+	} else {
+		tasks = append(tasks, chromedp.ActionFunc(func(ctx context.Context) error {
+			imgParams := page.CaptureScreenshot().WithFormat(page.CaptureScreenshotFormatPng)
+
+			if job.FullPage {
+				imgParams = imgParams.WithCaptureBeyondViewport(true)
+			} else {
+				imgParams = imgParams.WithClip(&page.Viewport{
+					X:      0,
+					Y:      0,
+					Width:  float64(job.Width),
+					Height: float64(job.Height),
+					Scale:  1,
+				})
+			}
+			var err error
+			imgBuf, err = imgParams.Do(ctx)
+			if err != nil {
+				return err
+			}
+			return nil
+		}))
+	}
+
+	err := chromedp.Run(tabCtx, tasks)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to capture screenshot: %w", err)
 	}
 
-	return buf, nil
-}
-
-func snapshot(url string, buf *[]byte) chromedp.Tasks {
-	return chromedp.Tasks{
-		chromedp.Navigate(url),
-		chromedp.WaitReady("body"),
-		chromedp.CaptureScreenshot(buf),
-	}
+	return imgBuf, nil
 }

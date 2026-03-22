@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dariomba/screen-go/internal/app"
 	"github.com/dariomba/screen-go/internal/logger"
@@ -22,6 +23,10 @@ type rootCmdFlags struct {
 	MaxProcessingThreads int
 	LogLevel             string
 	LogPretty            bool
+
+	ChromeTimeout time.Duration
+	ChromeWindowX int
+	ChromeWindowY int
 }
 
 func NewRootCmd(ctr *app.Container) *cobra.Command {
@@ -59,12 +64,21 @@ func addRootCmdFlags(cmd *cobra.Command, flags *rootCmdFlags) {
 	cmd.PersistentFlags().IntVar(&flags.MaxProcessingThreads, "max-processing-threads", 10, "Maximum number of concurrent processing threads for screenshot jobs")
 	cmd.PersistentFlags().StringVar(&flags.LogLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	cmd.PersistentFlags().BoolVar(&flags.LogPretty, "log-pretty", false, "Enable pretty logging for development")
+
+	cmd.PersistentFlags().DurationVar(&flags.ChromeTimeout, "chrome-timeout", 30*time.Second, "Timeout used by chrome driver")
+	cmd.PersistentFlags().IntVar(&flags.ChromeWindowX, "chrome-window-x", 1920, "Window size in x axis")
+	cmd.PersistentFlags().IntVar(&flags.ChromeWindowY, "chrome-window-y", 1080, "Window size in y axis")
+
 }
 
 func addRootContainerParams(ctr *app.Container, flags *rootCmdFlags) {
 	ctr.MaxProcessingThreads = flags.MaxProcessingThreads
 	ctr.LogLevel = flags.LogLevel
 	ctr.LogPretty = flags.LogPretty
+
+	ctr.ChromeTimeout = flags.ChromeTimeout
+	ctr.ChromeWindowX = flags.ChromeWindowX
+	ctr.ChromeWindowY = flags.ChromeWindowY
 }
 
 func initViper(cmd *cobra.Command) error {
