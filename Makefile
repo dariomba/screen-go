@@ -62,7 +62,7 @@ run: docker-db-start
 	go run main.go serve --log-level=debug --log-pretty=true
 
 test:
-	go test ./... -race -count=1 -timeout=60s
+	go test -race -timeout=60s ./... 
 
 lint:
 	golangci-lint run ./...
