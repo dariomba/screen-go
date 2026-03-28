@@ -121,7 +121,9 @@ func TestCreateJob(t *testing.T) {
 				CreateJobConfig{StatusEndpoint: "/v1/job/"},
 			)
 
-			got, err := uc.Execute(context.Background(), tt.job)
+			// Create a copy of the job to avoid modifying shared test data
+			jobCopy := *tt.job
+			got, err := uc.Execute(context.Background(), &jobCopy)
 
 			if tt.wantErr != nil {
 				require.Error(t, err)
