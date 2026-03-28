@@ -5,6 +5,7 @@ go 1.26
 tool (
 	github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 	github.com/sqlc-dev/sqlc/cmd/sqlc
+	go.uber.org/mock/mockgen
 )
 
 require (
@@ -20,6 +21,8 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
+	github.com/stretchr/testify v1.11.1
+	go.uber.org/mock v0.6.0
 )
 
 require (
