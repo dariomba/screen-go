@@ -55,3 +55,17 @@ func (mr *MockChromeDriverMockRecorder) CaptureScreenshot(ctx, job any) *gomock.
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CaptureScreenshot", reflect.TypeOf((*MockChromeDriver)(nil).CaptureScreenshot), ctx, job)
 }
+
+// Shutdown mocks base method.
+func (m *MockChromeDriver) Shutdown(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockChromeDriverMockRecorder) Shutdown(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockChromeDriver)(nil).Shutdown), ctx)
+}

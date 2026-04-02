@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 
 	"github.com/dariomba/screen-go/internal/domain"
 	"github.com/dariomba/screen-go/internal/logger"
@@ -31,8 +32,9 @@ type JobProcessor struct {
 
 	jobs chan *jobWithContext
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	wg       sync.WaitGroup
+	shutdown chan struct{}
+	once     sync.Once
 }
 
 func NewJobProcessor(
@@ -45,8 +47,6 @@ func NewJobProcessor(
 ) *JobProcessor {
 	jobs := make(chan *jobWithContext, config.MaxThreads)
 
-	ctx, cancel := context.WithCancel(context.Background())
-
 	jp := &JobProcessor{
 		jobRepository:        jobRepository,
 		screenshotRepository: screenshotRepository,
@@ -55,8 +55,7 @@ func NewJobProcessor(
 		chromeDriver:         chromeDriver,
 		config:               config,
 		jobs:                 jobs,
-		ctx:                  ctx,
-		cancel:               cancel,
+		shutdown:             make(chan struct{}),
 	}
 
 	jp.startWorkers()
@@ -70,27 +69,24 @@ func (jp *JobProcessor) Process(ctx context.Context, job *domain.Job) {
 	logger.Ctx(ctx).Info().
 		Str("url", job.URL).
 		Msg("received new job for processing")
-	jp.jobs <- &jobWithContext{
-		job: job,
-		ctx: ctx,
+	select {
+	case <-jp.shutdown:
+		logger.Ctx(ctx).Warn().
+			Str("url", job.URL).
+			Msg("job rejected, processor is shutting down")
+		jp.markJobAsFailed(ctx, job, "job processor is shutting down, please retry later")
+		return
+	case jp.jobs <- &jobWithContext{job: job, ctx: ctx}:
 	}
 }
 
 func (jp *JobProcessor) startWorkers() {
 	for i := 0; i < jp.config.MaxThreads; i++ {
-		go func() {
-			for {
-				select {
-				case <-jp.ctx.Done():
-					return
-				case jobCtx, ok := <-jp.jobs:
-					if !ok {
-						return
-					}
-					jp.processJob(jobCtx.ctx, jobCtx.job)
-				}
+		jp.wg.Go(func() {
+			for jobCtx := range jp.jobs {
+				jp.processJob(jobCtx.ctx, jobCtx.job)
 			}
-		}()
+		})
 	}
 }
 
@@ -213,7 +209,29 @@ func contentTypeFromFormat(format domain.JobFormat) string {
 	}
 }
 
-func (jp *JobProcessor) Close() error {
-	close(jp.jobs)
-	return nil
+func (jp *JobProcessor) Shutdown(ctx context.Context) error {
+	jp.once.Do(func() {
+		close(jp.shutdown)
+		close(jp.jobs)
+	})
+
+	done := make(chan struct{})
+	go func() {
+		jp.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		logger.Info().Msg("all workers have completed, shutdown complete")
+
+		return jp.chromeDriver.Shutdown(ctx)
+	case <-ctx.Done():
+		logger.Warn().Msg("shutdown timeout reached, forcing shutdown with active workers")
+
+		jp.chromeDriver.Shutdown(ctx)
+
+		logger.Info().Msg("forced shutdown complete")
+		return context.DeadlineExceeded
+	}
 }

@@ -40,6 +40,8 @@ type params struct {
 	ChromeTimeout time.Duration
 	ChromeWindowX int
 	ChromeWindowY int
+
+	ShutdownTimeout time.Duration
 }
 
 type services struct {
@@ -73,6 +75,7 @@ func NewContainer() *Container {
 			StatusPollingEndpoint: "/v1/job/",
 			LogLevel:              "info",
 			LogPretty:             false,
+			ShutdownTimeout:       30 * time.Second,
 		},
 	}
 }
@@ -292,4 +295,20 @@ func (ctr *Container) GetScreenshotHandler() openapi.GetScreenshot {
 		ctr.getScreenshotHandler = oapiv1.NewGetScreenshotHandler(ctr.GetScreenshotUseCase())
 	}
 	return ctr.getScreenshotHandler
+}
+
+func (ctr *Container) Shutdown() {
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), ctr.ShutdownTimeout)
+	defer shutdownCancel()
+	logger.Info().Msg("Shutdown signal received, stopping server...")
+	if err := ctr.HTTPServer().Shutdown(context.Background()); err != nil {
+		logger.Error().Err(err).Msg("Server shutdown failed")
+	}
+	logger.Info().Msg("Server gracefully stopped")
+
+	if err := ctr.JobProcessor().Shutdown(shutdownCtx); err != nil {
+		logger.Error().Err(err).Msg("Failed to shutdown job processor")
+	}
+
+	ctr.Database().Close()
 }

@@ -3,6 +3,8 @@ package chromedp
 import (
 	"context"
 	"fmt"
+	"os/exec"
+	"syscall"
 	"time"
 
 	"github.com/chromedp/cdproto/page"
@@ -32,6 +34,11 @@ func NewChromedp(config *ChromedpConfig) (*Chromedp, error) {
 		chromedp.NoFirstRun,
 		chromedp.DisableGPU,
 		chromedp.IgnoreCertErrors,
+		chromedp.ModifyCmdFunc(func(cmd *exec.Cmd) {
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				Setpgid: true, // Start the process in a new process group for graceful shutdown
+			}
+		}),
 		chromedp.Flag("disable-features", "MediaRouter"),
 		chromedp.Flag("disable-background-timer-throttling", true),
 		chromedp.Flag("disable-backgrounding-occluded-windows", true),
@@ -118,4 +125,12 @@ func (d *Chromedp) CaptureScreenshot(ctx context.Context, job *domain.Job) ([]by
 	}
 
 	return imgBuf, nil
+}
+
+func (d *Chromedp) Shutdown(ctx context.Context) error {
+	if err := chromedp.Cancel(d.browserCtx); err != nil {
+		return fmt.Errorf("failed to cancel browser context: %w", err)
+	}
+	d.allocatorCancel()
+	return nil
 }
