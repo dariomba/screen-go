@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/dariomba/screen-go/internal/app"
 	"github.com/dariomba/screen-go/internal/logger"
@@ -20,6 +21,8 @@ type serveCmdFlags struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	ShutdownTimeout time.Duration
 }
 
 func createServeCmd(ctr *app.Container) *cobra.Command {
@@ -46,11 +49,7 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 			}()
 
 			<-ctx.Done()
-			logger.Info().Msg("Shutdown signal received, stopping server...")
-			if err := ctr.HTTPServer().Shutdown(context.Background()); err != nil {
-				logger.Fatal().Err(err).Msg("Server shutdown failed")
-			}
-			logger.Info().Msg("Server gracefully stopped")
+			ctr.Shutdown()
 		},
 	}
 
@@ -68,6 +67,7 @@ func addServeCmdFlags(cmd *cobra.Command, flags *serveCmdFlags) {
 	cmd.Flags().StringVar(&flags.DBUser, "db-user", "postgres", "Database user")
 	cmd.Flags().StringVar(&flags.DBPassword, "db-password", "postgres", "Database password")
 	cmd.Flags().StringVar(&flags.DBName, "db-name", "screengodb", "Database name")
+	cmd.Flags().DurationVar(&flags.ShutdownTimeout, "shutdown-timeout", 30*time.Second, "Timeout for graceful shutdown")
 }
 
 func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
@@ -79,4 +79,6 @@ func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
 	ctr.DBUser = flags.DBUser
 	ctr.DBPassword = flags.DBPassword
 	ctr.DBName = flags.DBName
+
+	ctr.ShutdownTimeout = flags.ShutdownTimeout
 }

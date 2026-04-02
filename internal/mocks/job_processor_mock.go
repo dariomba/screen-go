@@ -41,20 +41,6 @@ func (m *MockJobProcessor) EXPECT() *MockJobProcessorMockRecorder {
 	return m.recorder
 }
 
-// Close mocks base method.
-func (m *MockJobProcessor) Close() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Close")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Close indicates an expected call of Close.
-func (mr *MockJobProcessorMockRecorder) Close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockJobProcessor)(nil).Close))
-}
-
 // Process mocks base method.
 func (m *MockJobProcessor) Process(ctx context.Context, job *domain.Job) {
 	m.ctrl.T.Helper()
@@ -65,4 +51,18 @@ func (m *MockJobProcessor) Process(ctx context.Context, job *domain.Job) {
 func (mr *MockJobProcessorMockRecorder) Process(ctx, job any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockJobProcessor)(nil).Process), ctx, job)
+}
+
+// Shutdown mocks base method.
+func (m *MockJobProcessor) Shutdown(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockJobProcessorMockRecorder) Shutdown(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockJobProcessor)(nil).Shutdown), ctx)
 }
