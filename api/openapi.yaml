@@ -378,3 +378,12 @@ components:
           type: string
           description: Human-readable description of what went wrong.
           example: ["unexpected error occurred"]
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key 
+
+security:
+  - ApiKeyAuth: [] 

@@ -17,6 +17,7 @@ import (
 	"github.com/dariomba/screen-go/internal/application/usecase"
 	"github.com/dariomba/screen-go/internal/logger"
 	"github.com/dariomba/screen-go/internal/ports"
+	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/jackc/pgx/v5/pgxpool"
 	nethttpmiddleware "github.com/oapi-codegen/nethttp-middleware"
 )
@@ -30,6 +31,8 @@ type params struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
+
+	APIKeys []string
 
 	LogLevel  string
 	LogPretty bool
@@ -99,6 +102,7 @@ func (ctr *Container) HTTPServer() *http.Server {
 func (ctr *Container) OAPIHandler() http.Handler {
 	if ctr.oapiHandler == nil {
 		middlewares := []openapi.MiddlewareFunc{
+			middleware.APIKeyAuthMiddleware(ctr.APIKeys),
 			ctr.OAPIRequestValidatorMiddleware(),
 		}
 
@@ -147,6 +151,9 @@ func (ctr *Container) OAPIRequestValidatorMiddleware() openapi.MiddlewareFunc {
 		openApiSwagger.Servers = nil
 
 		ctr.oapiRequestValidatorMiddleware = nethttpmiddleware.OapiRequestValidatorWithOptions(openApiSwagger, &nethttpmiddleware.Options{
+			Options: openapi3filter.Options{
+				AuthenticationFunc: openapi3filter.NoopAuthenticationFunc, // We handle authentication separately in our own middleware, so we can skip it here
+			},
 			ErrorHandler: func(w http.ResponseWriter, message string, statusCode int) {
 				logger.Error().
 					Str("error_type", "validation_error").

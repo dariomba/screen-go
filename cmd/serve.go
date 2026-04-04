@@ -13,6 +13,8 @@ import (
 )
 
 type serveCmdFlags struct {
+	APIKeys []string
+
 	HttpHost string
 	HttpPort string
 
@@ -68,9 +70,12 @@ func addServeCmdFlags(cmd *cobra.Command, flags *serveCmdFlags) {
 	cmd.Flags().StringVar(&flags.DBPassword, "db-password", "postgres", "Database password")
 	cmd.Flags().StringVar(&flags.DBName, "db-name", "screengodb", "Database name")
 	cmd.Flags().DurationVar(&flags.ShutdownTimeout, "shutdown-timeout", 30*time.Second, "Timeout for graceful shutdown")
+	cmd.Flags().StringSliceVar(&flags.APIKeys, "api-keys", []string{}, "Comma-separated list of valid API keys for authentication, empty means no authentication")
 }
 
 func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
+	ctr.APIKeys = flags.APIKeys
+
 	ctr.HttpHost = flags.HttpHost
 	ctr.HttpPort = flags.HttpPort
 
