@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_DB: ${DB_NAME:-screengodb}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: screengo-app
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SCREENGO_API_DB_HOST: postgres
+      SCREENGO_API_DB_PORT: 5432
+      SCREENGO_API_DB_USER: ${DB_USER:-postgres}
+      SCREENGO_API_DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      SCREENGO_API_DB_NAME: ${DB_NAME:-screengodb}
+      SCREENGO_API_API_KEYS: ${SCREEN_GO_API_KEYS:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
