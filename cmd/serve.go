@@ -18,6 +18,7 @@ type serveCmdFlags struct {
 	HttpHost string
 	HttpPort string
 
+	DBConnStr  string
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -64,6 +65,8 @@ func createServeCmd(ctr *app.Container) *cobra.Command {
 func addServeCmdFlags(cmd *cobra.Command, flags *serveCmdFlags) {
 	cmd.Flags().StringVar(&flags.HttpHost, "http-host", "", "HTTP host to listen on")
 	cmd.Flags().StringVar(&flags.HttpPort, "http-port", "8080", "HTTP port to listen on")
+
+	cmd.Flags().StringVar(&flags.DBConnStr, "db-conn-str", "", "Database connection string (overrides individual DB parameters)")
 	cmd.Flags().StringVar(&flags.DBHost, "db-host", "localhost", "Database host")
 	cmd.Flags().StringVar(&flags.DBPort, "db-port", "5432", "Database port")
 	cmd.Flags().StringVar(&flags.DBUser, "db-user", "postgres", "Database user")
@@ -79,6 +82,7 @@ func addContainerParams(ctr *app.Container, flags *serveCmdFlags) {
 	ctr.HttpHost = flags.HttpHost
 	ctr.HttpPort = flags.HttpPort
 
+	ctr.DBConnStr = flags.DBConnStr
 	ctr.DBHost = flags.DBHost
 	ctr.DBPort = flags.DBPort
 	ctr.DBUser = flags.DBUser

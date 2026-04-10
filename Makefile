@@ -64,5 +64,10 @@ run: docker-db-start
 test:
 	go test -race -timeout=60s ./... 
 
+test-integration:
+	go test ./integration/... -v -count=1 -tags=integration -timeout=120s
+
+test-all: test test-integration
+
 lint:
 	golangci-lint run ./...

@@ -26,6 +26,7 @@ type params struct {
 	HttpHost string
 	HttpPort string
 
+	DBConnStr  string
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -79,6 +80,10 @@ func NewContainer() *Container {
 			LogLevel:              "info",
 			LogPretty:             false,
 			ShutdownTimeout:       30 * time.Second,
+			ChromeTimeout:         30 * time.Second,
+			ChromeWindowX:         1920,
+			ChromeWindowY:         1080,
+			MaxProcessingThreads:  10,
 		},
 	}
 }
@@ -170,7 +175,10 @@ func (ctr *Container) OAPIRequestValidatorMiddleware() openapi.MiddlewareFunc {
 
 func (ctr *Container) Database() *pgxpool.Pool {
 	if ctr.database == nil {
-		connStr := "postgres://" + ctr.DBUser + ":" + ctr.DBPassword + "@" + ctr.DBHost + ":" + ctr.DBPort + "/" + ctr.DBName
+		connStr := ctr.DBConnStr
+		if connStr == "" {
+			connStr = "postgres://" + ctr.DBUser + ":" + ctr.DBPassword + "@" + ctr.DBHost + ":" + ctr.DBPort + "/" + ctr.DBName
+		}
 		conn, err := pgxpool.New(context.Background(), connStr)
 		if err != nil {
 			panic(err)
