@@ -18,6 +18,6 @@ type SaveScreenshotResult struct {
 
 //go:generate go tool go.uber.org/mock/mockgen -source=screenshot_storage.go -destination=../mocks/screenshot_storage_mock.go -package=mocks
 type ScreenshotStorage interface {
-	Get(ctx context.Context, key string) (io.Reader, error)
+	Get(ctx context.Context, key string) (io.ReadCloser, error)
 	Save(ctx context.Context, input *SaveScreenshotInput) (*SaveScreenshotResult, error)
 }

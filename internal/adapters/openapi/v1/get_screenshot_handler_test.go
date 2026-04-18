@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"context"
+	"io"
 	"testing"
 
 	"github.com/dariomba/screen-go/internal/adapters/openapi"
@@ -103,7 +104,7 @@ func TestGetScreenshotHandler(t *testing.T) {
 
 				m.screenshotStorage.EXPECT().
 					Get(gomock.Any(), storageKey).
-					Return(bytes.NewReader(data), nil)
+					Return(io.NopCloser(bytes.NewReader(data)), nil)
 			},
 		},
 		{
@@ -130,7 +131,7 @@ func TestGetScreenshotHandler(t *testing.T) {
 
 				m.screenshotStorage.EXPECT().
 					Get(gomock.Any(), storageKey).
-					Return(bytes.NewReader(data), nil)
+					Return(io.NopCloser(bytes.NewReader(data)), nil)
 			},
 		},
 	}

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,11 +17,14 @@ type LocalStorage struct {
 	basePath string
 }
 
-func NewLocalStorage(basePath string) *LocalStorage {
-	return &LocalStorage{basePath: basePath}
+func NewLocalStorage(basePath string) (*LocalStorage, error) {
+	if basePath == "" {
+		return nil, errors.New("base path cannot be empty")
+	}
+	return &LocalStorage{basePath: basePath}, nil
 }
 
-func (s *LocalStorage) Get(ctx context.Context, key string) (io.Reader, error) {
+func (s *LocalStorage) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	fullPath := filepath.Join(s.basePath, key)
 
 	file, err := os.Open(fullPath)

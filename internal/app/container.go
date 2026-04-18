@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -46,6 +47,14 @@ type params struct {
 	ChromeWindowY int
 
 	ShutdownTimeout time.Duration
+
+	StorageProvider  string
+	StorageBasePath  string
+	StorageBucket    string
+	StorageEndpoint  string
+	StorageAccessKey string
+	StorageSecretKey string
+	StorageRegion    string
 }
 
 type services struct {
@@ -59,7 +68,7 @@ type services struct {
 	uuidGenerator                  ports.UUIDGenerator
 	jobProcessor                   ports.JobProcessor
 	chromeDriver                   ports.ChromeDriver
-	localStorage                   ports.ScreenshotStorage
+	screenshotStorage              ports.ScreenshotStorage
 	createJobUseCase               *usecase.CreateJob
 	createJobHandler               openapi.CreateJob
 	getJobStatusUseCase            *usecase.GetJobStatus
@@ -84,6 +93,8 @@ func NewContainer() *Container {
 			ChromeWindowX:         1920,
 			ChromeWindowY:         1080,
 			MaxProcessingThreads:  10,
+			StorageProvider:       string(storage.ProviderFilesystem),
+			StorageBasePath:       "/tmp/screen-go",
 		},
 	}
 }
@@ -208,7 +219,7 @@ func (ctr *Container) JobProcessor() ports.JobProcessor {
 			ctr.ChromeDriver(),
 			ctr.PostgresJobRepository(),
 			ctr.PostgresScreenshotRepository(),
-			ctr.LocalStorage(),
+			ctr.ScreenshotStorage(),
 			ctr.UUIDGenerator(),
 			processor.JobProcessorConfig{
 				MaxThreads: ctr.MaxProcessingThreads,
@@ -246,11 +257,25 @@ func (ctr *Container) PostgresScreenshotRepository() *postgres.ScreenshotReposit
 	return ctr.postgresScreenshotRepository
 }
 
-func (ctr *Container) LocalStorage() ports.ScreenshotStorage {
-	if ctr.localStorage == nil {
-		ctr.localStorage = storage.NewLocalStorage("/tmp/screen-go")
+func (ctr *Container) ScreenshotStorage() ports.ScreenshotStorage {
+	if ctr.screenshotStorage == nil {
+		cfg := storage.Config{
+			Provider:  storage.StorageProvider(ctr.StorageProvider),
+			BasePath:  ctr.StorageBasePath,
+			Bucket:    ctr.StorageBucket,
+			Endpoint:  ctr.StorageEndpoint,
+			AccessKey: ctr.StorageAccessKey,
+			SecretKey: ctr.StorageSecretKey,
+			Region:    ctr.StorageRegion,
+		}
+
+		var err error
+		ctr.screenshotStorage, err = storage.NewScreenshotStorage(cfg)
+		if err != nil {
+			panic(fmt.Errorf("failed to initialize storage: %w", err))
+		}
 	}
-	return ctr.localStorage
+	return ctr.screenshotStorage
 }
 
 func (ctr *Container) CreateJobUseCase() *usecase.CreateJob {
@@ -280,7 +305,7 @@ func (ctr *Container) GetScreenshotUseCase() *usecase.GetScreenshot {
 	if ctr.getScreenshotUseCase == nil {
 		ctr.getScreenshotUseCase = usecase.NewGetScreenshot(
 			ctr.PostgresScreenshotRepository(),
-			ctr.LocalStorage(),
+			ctr.ScreenshotStorage(),
 		)
 	}
 	return ctr.getScreenshotUseCase
