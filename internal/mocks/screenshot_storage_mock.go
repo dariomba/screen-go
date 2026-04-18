@@ -43,10 +43,10 @@ func (m *MockScreenshotStorage) EXPECT() *MockScreenshotStorageMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockScreenshotStorage) Get(ctx context.Context, key string) (io.Reader, error) {
+func (m *MockScreenshotStorage) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, key)
-	ret0, _ := ret[0].(io.Reader)
+	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
