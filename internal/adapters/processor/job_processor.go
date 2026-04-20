@@ -74,7 +74,7 @@ func (jp *JobProcessor) Process(ctx context.Context, job *domain.Job) {
 		logger.Ctx(ctx).Warn().
 			Str("url", job.URL).
 			Msg("job rejected, processor is shutting down")
-		jp.markJobAsFailed(ctx, job, "job processor is shutting down, please retry later")
+		jp.markJobAsFailed(ctx, job, "job processor is shutting down, please retry later") //nolint:errcheck
 		return
 	case jp.jobs <- &jobWithContext{job: job, ctx: ctx}:
 	}
@@ -229,7 +229,7 @@ func (jp *JobProcessor) Shutdown(ctx context.Context) error {
 	case <-ctx.Done():
 		logger.Warn().Msg("shutdown timeout reached, forcing shutdown with active workers")
 
-		jp.chromeDriver.Shutdown(ctx)
+		jp.chromeDriver.Shutdown(ctx) //nolint:errcheck
 
 		logger.Info().Msg("forced shutdown complete")
 		return context.DeadlineExceeded

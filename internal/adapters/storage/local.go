@@ -56,7 +56,7 @@ func (s *LocalStorage) Save(ctx context.Context, input *ports.SaveScreenshotInpu
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	_, err = io.Copy(file, input.Body)
 	if err != nil {
