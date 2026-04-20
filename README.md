@@ -1,3 +1,4 @@
+[![CI](https://github.com/dariomba/screen-go/actions/workflows/ci.yaml/badge.svg)](https://github.com/dariomba/screen-go/actions/workflows/ci.yaml)
 # Screen-Go
 
 A self-hosted screenshot-as-a-service API built with Go. It uses headless Chrome to capture website screenshots and processes jobs asynchronously.
