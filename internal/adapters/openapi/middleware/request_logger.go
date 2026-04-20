@@ -77,7 +77,7 @@ func Recovery(next http.Handler) http.Handler {
 					Msg("Panic recovered")
 
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error":"internal server error"}`))
+				w.Write([]byte(`{"error":"internal server error"}`)) //nolint:errcheck
 			}
 		}()
 		next.ServeHTTP(w, r)
