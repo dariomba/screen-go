@@ -61,6 +61,9 @@ docker-db-logs:
 run: docker-db-start
 	go run main.go serve --log-level=debug --log-pretty=true
 
+lint:
+	golangci-lint run
+
 test:
 	go test -race -timeout=60s ./... 
 
